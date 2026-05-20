@@ -1,0 +1,5 @@
+team,nodes,edges,total_passes,density,reciprocity,GK,DEF,MID,ATT
+Argentina,67,913,10199,0.206,0.896,6,26,24,11
+France,52,819,11284,0.309,0.869,4,19,15,14
+Croatia,38,677,10274,0.482,0.886,3,15,5,15
+Morocco,38,582,4857,0.414,0.838,2,13,14,9
