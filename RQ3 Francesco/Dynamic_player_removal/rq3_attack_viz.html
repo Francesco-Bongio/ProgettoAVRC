@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>RQ3 — Cosa succede se togli il giocatore più importante?</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+/* ============================================================
+   Design system — coerente con la palette del notebook RQ3
+   ============================================================ */
+:root {
+  --ink:      #0F172A;
+  --ink-soft: #475569;
+  --muted:    #E2E8F0;
+  --muted-2:  #CBD5E1;
+  --bg:       #FAFBFC;
+  --pitch-bg: #1e3a2d;
+  --pitch-ln: #e6efe6;
+  --accent:   #DD8452;
+  --highlight:#C44E52;
+  --green:    #55A868;
+  --gk:  #FCBF49;
+  --def: #3A86FF;
+  --mid: #E63946;
+  --att: #06D6A0;
+  --shadow:   0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.05);
+  --shadow-2: 0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04);
+  --r-card: 10px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+               "Inter", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 24px 20px 40px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+/* ============================================================ HEADER */
+header { margin-bottom: 18px; }
+h1 {
+  font-size: 22px; font-weight: 600; margin: 0 0 6px;
+  letter-spacing: -0.015em;
+}
+.lead {
+  margin: 0 0 14px; color: var(--ink-soft); font-size: 14.5px;
+  max-width: 800px;
+}
+.lead em { color: var(--ink); font-style: normal; font-weight: 500; }
+
+/* ============================================================ TABS */
+.team-tabs {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--muted);
+}
+.team-tabs button {
+  appearance: none; -webkit-appearance: none;
+  border: 1px solid var(--muted-2);
+  background: white;
+  padding: 8px 14px;
+  font: inherit; font-size: 13.5px; font-weight: 500;
+  color: var(--ink-soft);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 140ms ease;
+  display: flex; align-items: center; gap: 8px;
+}
+.team-tabs button:hover { background: #F8FAFC; color: var(--ink); }
+.team-tabs button .swatch {
+  display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+}
+.team-tabs button[aria-selected="true"] {
+  background: var(--ink); color: white; border-color: var(--ink);
+}
+
+/* ============================================================ MAIN LAYOUT */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ============================================================ PITCH */
+.pitch-section { min-width: 0; }
+.pitch-wrap {
+  background: white;
+  border: 1px solid var(--muted);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  overflow: hidden;
+}
+#pitch {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.pitch-title {
+  font-size: 11.5px; color: var(--ink-soft);
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.pitch-title .right { color: var(--ink); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.pitch-hint {
+  margin-top: 6px;
+  font-size: 12px; color: var(--ink-soft);
+  font-style: italic;
+  text-align: center;
+  min-height: 1.5em;
+}
+
+/* ============================================================ CONTROLS */
+.controls {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-top: 14px;
+}
+.controls button {
+  appearance: none; border: 1px solid var(--muted-2);
+  background: white; color: var(--ink);
+  padding: 9px 14px;
+  font: inherit; font-size: 13.5px; font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 140ms ease;
+  box-shadow: var(--shadow);
+}
+.controls button:hover { background: #F8FAFC; transform: translateY(-1px); box-shadow: var(--shadow-2); }
+.controls button:active { transform: translateY(0); }
+.controls button.primary {
+  background: var(--accent); color: white; border-color: var(--accent);
+}
+.controls button.primary:hover { background: #C97142; border-color: #C97142; }
+.controls button.ghost { color: var(--ink-soft); }
+
+.progressive {
+  margin-top: 14px;
+  background: white;
+  border: 1px solid var(--muted);
+  border-radius: var(--r-card);
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  box-shadow: var(--shadow);
+}
+.progressive label.head {
+  font-size: 12px; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;
+}
+.progressive input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.progressive .step-readout {
+  font-variant-numeric: tabular-nums;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 32px;
+  text-align: right;
+}
+.progressive .removed-list {
+  grid-column: 1 / -1;
+  font-size: 12.5px; color: var(--ink-soft);
+  min-height: 1.4em;
+  padding-top: 2px;
+}
+.progressive .removed-list .chip {
+  display: inline-block;
+  background: var(--muted);
+  color: var(--ink);
+  padding: 1px 8px;
+  border-radius: 10px;
+  margin-right: 5px;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+/* ============================================================ SIDEBAR */
+.sidebar { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card {
+  background: white;
+  border: 1px solid var(--muted);
+  border-radius: var(--r-card);
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.kpi {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.kpi .label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.kpi .num {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.kpi .delta {
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  margin-top: 1px;
+}
+.delta.bad { color: var(--highlight); }
+.delta.good { color: var(--green); }
+.delta.neutral { color: var(--ink-soft); }
+
+/* Distribution mini-chart for z-score */
+.dist-card { padding: 14px; }
+.dist-row {
+  display: grid; grid-template-columns: 50px 1fr 50px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.dist-row:last-child { margin-bottom: 0; }
+.dist-row .name {
+  font-size: 11px; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.dist-row .z {
+  font-size: 12px; font-weight: 600; text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--highlight);
+}
+.dist-row svg.dist { display: block; width: 100%; height: 36px; }
+
+/* Legend */
+.legend-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.legend-row:last-child { margin-bottom: 0; }
+.legend-row .dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.legend-row .name { color: var(--ink-soft); }
+
+/* ============================================================ TOOLTIP (svg overlay) */
+.player-label {
+  font: 600 10.5px/1 -apple-system, system-ui, sans-serif;
+  fill: white;
+  paint-order: stroke;
+  stroke: rgba(15,23,42,0.55);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.player-label.pivot {
+  font-size: 11px;
+}
+
+/* ============================================================ ANIMATIONS */
+.fade-in { animation: fadeIn 240ms ease-out both; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* responsive */
+@media (max-width: 920px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { order: 2; }
+}
+
+footer {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--muted);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+footer code { background: #F1F5F9; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>RQ3 — Cosa succede se togli il giocatore più importante?</h1>
+  <p class="lead">
+    Reti aggregate dei passaggi delle quattro semifinaliste del Mondiale 2022. Ogni nodo è un giocatore alla sua
+    posizione media reale sul campo; ogni arco è una direzione di passaggio, con spessore proporzionale al numero di
+    passaggi completati. <em>Clicca un giocatore per rimuoverlo</em>, oppure usa i pulsanti qui sotto per togliere
+    automaticamente il pivot (top-1 in <em>betweenness</em> pesata) o un giocatore di movimento a caso. Le KPI a
+    destra si aggiornano in tempo reale.
+  </p>
+</header>
+
+<div class="team-tabs" id="team-tabs" role="tablist"></div>
+
+<main class="layout">
+
+  <section class="pitch-section">
+    <div class="pitch-wrap">
+      <div class="pitch-title">
+        <span>Rete aggregata · WC 2022</span>
+        <span class="right" id="pitch-team-name">Argentina</span>
+      </div>
+      <svg id="pitch" viewBox="0 0 720 480" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="pitch-hint" id="hint">Passa il mouse su un giocatore per vedere chi gli passa la palla.</div>
+    </div>
+
+    <div class="controls">
+      <button id="btn-pivot" class="primary">🎯 Togli il pivot</button>
+      <button id="btn-random">🎲 Togli a caso</button>
+      <button id="btn-reset" class="ghost">↺ Reset</button>
+    </div>
+
+    <div class="progressive">
+      <label class="head">Rimozione progressiva</label>
+      <input type="range" id="prog" min="0" max="3" value="0" step="1">
+      <span class="step-readout" id="prog-readout">0 / 3</span>
+      <div class="removed-list" id="prog-removed"></div>
+    </div>
+  </section>
+
+  <aside class="sidebar">
+
+    <div class="card">
+      <div class="card-title">Stato attuale</div>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <span class="label">Avg. path length</span>
+          <span class="num" id="kpi-apl">–</span>
+          <span class="delta" id="kpi-apl-delta">&nbsp;</span>
+        </div>
+        <div class="kpi">
+          <span class="label">Efficienza</span>
+          <span class="num" id="kpi-eff">–</span>
+          <span class="delta" id="kpi-eff-delta">&nbsp;</span>
+        </div>
+        <div class="kpi">
+          <span class="label">Nodi</span>
+          <span class="num" id="kpi-n">–</span>
+        </div>
+        <div class="kpi">
+          <span class="label">Componenti</span>
+          <span class="num" id="kpi-comp">–</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card dist-card">
+      <div class="card-title">Pivot vs distribuzione casuale (200 trial)</div>
+      <div class="dist-row">
+        <span class="name">L̄(G)</span>
+        <svg class="dist" id="dist-apl"></svg>
+        <span class="z" id="z-apl">–</span>
+      </div>
+      <div class="dist-row">
+        <span class="name">Eff.</span>
+        <svg class="dist" id="dist-eff"></svg>
+        <span class="z" id="z-eff">–</span>
+      </div>
+      <div style="font-size: 11px; color: var(--ink-soft); margin-top: 6px; line-height: 1.45;">
+        <span style="display:inline-block; width:8px; height:8px; background:var(--muted-2); border-radius:50%; vertical-align: middle;"></span>
+        rimozioni casuali  ·
+        <span style="display:inline-block; width:8px; height:8px; background:var(--highlight); border-radius:50%; vertical-align: middle;"></span>
+        rimozione del pivot
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Reparto</div>
+      <div class="legend-row"><span class="dot" style="background:var(--gk)"></span><span class="name">Portiere</span></div>
+      <div class="legend-row"><span class="dot" style="background:var(--def)"></span><span class="name">Difensore</span></div>
+      <div class="legend-row"><span class="dot" style="background:var(--mid)"></span><span class="name">Centrocampista</span></div>
+      <div class="legend-row"><span class="dot" style="background:var(--att)"></span><span class="name">Attaccante</span></div>
+      <div class="legend-row" style="margin-top:10px; padding-top:8px; border-top:1px solid var(--muted)">
+        <svg width="14" height="14" style="flex-shrink:0">
+          <circle cx="7" cy="7" r="4.5" fill="var(--mid)" stroke="var(--accent)" stroke-width="2.5"/>
+        </svg>
+        <span class="name"><em>Pivot</em> (max betweenness)</span>
+      </div>
+    </div>
+
+  </aside>
+</main>
+
+<footer>
+  Pipeline: <code>StatsBomb open-data</code> → <code>NetworkX</code> → <code>nx.node_link_data</code> → <code>D3.js v7</code>.
+  Distanza pesata = <code>1/peso</code>. Stesso protocollo del notebook RQ3 (§1–§4).
+</footer>
+
+<script>
+// ===========================================================================
+// DATA — embedded (no fetch needed; standalone file)
+// ===========================================================================
+const DATA = {"meta":{"tournament":"FIFA World Cup 2022","teams":["Argentina","France","Croatia","Morocco"],"team_colors":{"Argentina":"#75AADB","France":"#002395","Croatia":"#C44E52","Morocco":"#006233"},"line_colors":{"GK":"#FCBF49","DEF":"#3A86FF","MID":"#E63946","ATT":"#06D6A0"},"n_random":200,"min_minutes":30},"teams":{"Argentina":{"nodes":[{"id":"Otamendi","full":"Nicolás Hernán Otamendi","x":42.63803088803089,"y":33.59710424710425,"line":"DEF","minutes":630,"bc":0.5477941176470588,"out":518,"in":454},{"id":"De Paul","full":"Rodrigo Javier De Paul","x":64.47354838709677,"y":58.325806451612905,"line":"MID","minutes":630,"bc":0.2977941176470588,"out":465,"in":491},{"id":"Messi","full":"Lionel Andrés Messi Cuccittini","x":75.06835016835016,"y":48.207070707070706,"line":"ATT","minutes":630,"bc":0.23161764705882354,"out":297,"in":375},{"id":"Fernandez","full":"Enzo Fernandez","x":58.66559405940595,"y":39.24183168316832,"line":"MID","minutes":450,"bc":0.11764705882352941,"out":404,"in":408},{"id":"Paredes","full":"Leandro Daniel Paredes","x":55.358878504672894,"y":35.711214953271025,"line":"MID","minutes":180,"bc":0.058823529411764705,"out":214,"in":186},{"id":"Romero","full":"Cristian Gabriel Romero","x":43.20703363914373,"y":56.616513761467886,"line":"DEF","minutes":540,"bc":0.05514705882352941,"out":327,"in":283},{"id":"Allister","full":"Alexis Mac Allister","x":72.22301255230126,"y":27.80418410041841,"line":"MID","minutes":540,"bc":0.01838235294117647,"out":239,"in":258},{"id":"Gómez","full":"Alejandro Darío Gómez","x":66.99423076923077,"y":32.55576923076923,"line":"ATT","minutes":180,"bc":0.0,"out":52,"in":59},{"id":"Álvarez","full":"Julián Álvarez","x":77.41397849462365,"y":34.7763440860215,"line":"ATT","minutes":450,"bc":0.0,"out":93,"in":125},{"id":"Acuña","full":"Marcos Javier Acuña","x":66.82189349112426,"y":9.83905325443787,"line":"DEF","minutes":360,"bc":0.0,"out":169,"in":168},{"id":"Lucero","full":"Nahuel Molina Lucero","x":59.40576271186441,"y":71.10847457627119,"line":"DEF","minutes":540,"bc":0.0,"out":295,"in":255},{"id":"Tagliafico","full":"Nicolás Alejandro Tagliafico","x":64.61073825503355,"y":8.02214765100671,"line":"DEF","minutes":270,"bc":0.0,"out":149,"in":118},{"id":"Hernández","full":"Ángel Fabián Di María Hernández","x":82.48960000000001,"y":52.4152,"line":"ATT","minutes":360,"bc":0.0,"out":125,"in":170},{"id":"Montiel","full":"Gonzalo Ariel Montiel","x":62.20857142857143,"y":70.45428571428572,"line":"DEF","minutes":90,"bc":0.0,"out":70,"in":68},{"id":"Rodríguez","full":"Guido Rodríguez","x":48.1,"y":36.135185185185186,"line":"MID","minutes":90,"bc":0.0,"out":54,"in":54},{"id":"Lautaro","full":"Lautaro Javier Martínez","x":71.16666666666667,"y":37.756410256410255,"line":"ATT","minutes":180,"bc":0.0,"out":39,"in":78},{"id":"L. Martínez","full":"Lisandro Martínez","x":48.87615384615384,"y":20.646923076923077,"line":"DEF","minutes":180,"bc":0.0,"out":130,"in":123},{"id":"E. Martínez","full":"Damián Emiliano Martínez","x":10.812931034482759,"y":41.057758620689654,"line":"GK","minutes":630,"bc":0.0,"out":116,"in":83}],"links":[{"source":"Gómez","target":"Allister","weight":2},{"source":"Gómez","target":"Romero","weight":4},{"source":"Gómez","target":"Fernandez","weight":4},{"source":"Gómez","target":"Álvarez","weight":2},{"source":"Gómez","target":"Paredes","weight":6},{"source":"Gómez","target":"Messi","weight":12},{"source":"Gómez","target":"Acuña","weight":4},{"source":"Gómez","target":"Lucero","weight":4},{"source":"Gómez","target":"Tagliafico","weight":4},{"source":"Gómez","target":"Otamendi","weight":3},{"source":"Gómez","target":"De Paul","weight":6},{"source":"Gómez","target":"Hernández","weight":1},{"source":"Allister","target":"Gómez","weight":1},{"source":"Allister","target":"Romero","weight":3},{"source":"Allister","target":"Fernandez","weight":32},{"source":"Allister","target":"Montiel","weight":5},{"source":"Allister","target":"Rodríguez","weight":5},{"source":"Allister","target":"Álvarez","weight":14},{"source":"Allister","target":"Lautaro","weight":6},{"source":"Allister","target":"Paredes","weight":13},{"source":"Allister","target":"Messi","weight":29},{"source":"Allister","target":"L. Martínez","weight":9},{"source":"Allister","target":"Acuña","weight":39},{"source":"Allister","target":"Lucero","weight":6},{"source":"Allister","target":"Tagliafico","weight":10},{"source":"Allister","target":"Otamendi","weight":24},{"source":"Allister","target":"De Paul","weight":29},{"source":"Allister","target":"Hernández","weight":14},{"source":"Romero","target":"Gómez","weight":3},{"source":"Romero","target":"Allister","weight":7},{"source":"Romero","target":"E. Martínez","weight":25},{"source":"Romero","target":"Fernandez","weight":33},{"source":"Romero","target":"Montiel","weight":3},{"source":"Romero","target":"Álvarez","weight":5},{"source":"Romero","target":"Lautaro","weight":3},{"source":"Romero","target":"Paredes","weight":23},{"source":"Romero","target":"Messi","weight":26},{"source":"Romero","target":"Acuña","weight":2},{"source":"Romero","target":"Lucero","weight":42},{"source":"Romero","target":"Tagliafico","weight":1},{"source":"Romero","target":"Otamendi","weight":74},{"source":"Romero","target":"De Paul","weight":72},{"source":"Romero","target":"Hernández","weight":8},{"source":"Fernandez","target":"Gómez","weight":3},{"source":"Fernandez","target":"Allister","weight":34},{"source":"Fernandez","target":"Romero","weight":45},{"source":"Fernandez","target":"E. Martínez","weight":1},{"source":"Fernandez","target":"Montiel","weight":10},{"source":"Fernandez","target":"Álvarez","weight":22},{"source":"Fernandez","target":"Lautaro","weight":4},{"source":"Fernandez","target":"Paredes","weight":15},{"source":"Fernandez","target":"Messi","weight":48},{"source":"Fernandez","target":"L. Martínez","weight":8},{"source":"Fernandez","target":"Acuña","weight":18},{"source":"Fernandez","target":"Lucero","weight":43},{"source":"Fernandez","target":"Tagliafico","weight":16},{"source":"Fernandez","target":"Otamendi","weight":57},{"source":"Fernandez","target":"De Paul","weight":70},{"source":"Fernandez","target":"Hernández","weight":10},{"source":"Álvarez","target":"Allister","weight":18},{"source":"Álvarez","target":"Romero","weight":1},{"source":"Álvarez","target":"Fernandez","weight":12},{"source":"Álvarez","target":"Paredes","weight":1},{"source":"Álvarez","target":"Messi","weight":22},{"source":"Álvarez","target":"L. Martínez","weight":2},{"source":"Álvarez","target":"Acuña","weight":10},{"source":"Álvarez","target":"Lucero","weight":6},{"source":"Álvarez","target":"Tagliafico","weight":2},{"source":"Álvarez","target":"Otamendi","weight":2},{"source":"Álvarez","target":"De Paul","weight":14},{"source":"Álvarez","target":"Hernández","weight":3},{"source":"Paredes","target":"Gómez","weight":8},{"source":"Paredes","target":"Allister","weight":17},{"source":"Paredes","target":"Romero","weight":19},{"source":"Paredes","target":"Fernandez","weight":37},{"source":"Paredes","target":"Montiel","weight":2},{"source":"Paredes","target":"Álvarez","weight":2},{"source":"Paredes","target":"Lautaro","weight":7},{"source":"Paredes","target":"Messi","weight":25},{"source":"Paredes","target":"L. Martínez","weight":3},{"source":"Paredes","target":"Acuña","weight":2},{"source":"Paredes","target":"Lucero","weight":8},{"source":"Paredes","target":"Tagliafico","weight":14},{"source":"Paredes","target":"Otamendi","weight":31},{"source":"Paredes","target":"De Paul","weight":36},{"source":"Paredes","target":"Hernández","weight":3},{"source":"Messi","target":"Gómez","weight":12},{"source":"Messi","target":"Allister","weight":36},{"source":"Messi","target":"Romero","weight":9},{"source":"Messi","target":"Fernandez","weight":41},{"source":"Messi","target":"Montiel","weight":5},{"source":"Messi","target":"Rodríguez","weight":3},{"source":"Messi","target":"Álvarez","weight":16},{"source":"Messi","target":"Lautaro","weight":14},{"source":"Messi","target":"Paredes","weight":12},{"source":"Messi","target":"L. Martínez","weight":5},{"source":"Messi","target":"Acuña","weight":16},{"source":"Messi","target":"Lucero","weight":28},{"source":"Messi","target":"Tagliafico","weight":10},{"source":"Messi","target":"Otamendi","weight":15},{"source":"Messi","target":"De Paul","weight":55},{"source":"Messi","target":"Hernández","weight":20},{"source":"Acuña","target":"Gómez","weight":6},{"source":"Acuña","target":"Allister","weight":28},{"source":"Acuña","target":"Romero","weight":1},{"source":"Acuña","target":"E. Martínez","weight":4},{"source":"Acuña","target":"Fernandez","weight":27},{"source":"Acuña","target":"Rodríguez","weight":4},{"source":"Acuña","target":"Álvarez","weight":14},{"source":"Acuña","target":"Lautaro","weight":10},{"source":"Acuña","target":"Messi","weight":8},{"source":"Acuña","target":"L. Martínez","weight":20},{"source":"Acuña","target":"Lucero","weight":2},{"source":"Acuña","target":"Tagliafico","weight":2},{"source":"Acuña","target":"Otamendi","weight":30},{"source":"Acuña","target":"De Paul","weight":8},{"source":"Acuña","target":"Hernández","weight":5},{"source":"Lucero","target":"Gómez","weight":7},{"source":"Lucero","target":"Allister","weight":7},{"source":"Lucero","target":"Romero","weight":34},{"source":"Lucero","target":"E. Martínez","weight":12},{"source":"Lucero","target":"Fernandez","weight":30},{"source":"Lucero","target":"Álvarez","weight":11},{"source":"Lucero","target":"Lautaro","weight":4},{"source":"Lucero","target":"Paredes","weight":9},{"source":"Lucero","target":"Messi","weight":44},{"source":"Lucero","target":"L. Martínez","weight":1},{"source":"Lucero","target":"Acuña","weight":2},{"source":"Lucero","target":"Otamendi","weight":13},{"source":"Lucero","target":"De Paul","weight":97},{"source":"Lucero","target":"Hernández","weight":24},{"source":"Tagliafico","target":"Gómez","weight":3},{"source":"Tagliafico","target":"Allister","weight":34},{"source":"Tagliafico","target":"Romero","weight":1},{"source":"Tagliafico","target":"E. Martínez","weight":1},{"source":"Tagliafico","target":"Fernandez","weight":18},{"source":"Tagliafico","target":"Montiel","weight":1},{"source":"Tagliafico","target":"Álvarez","weight":9},{"source":"Tagliafico","target":"Lautaro","weight":8},{"source":"Tagliafico","target":"Paredes","weight":17},{"source":"Tagliafico","target":"Messi","weight":1},{"source":"Tagliafico","target":"L. Martínez","weight":6},{"source":"Tagliafico","target":"Acuña","weight":4},{"source":"Tagliafico","target":"Otamendi","weight":36},{"source":"Tagliafico","target":"De Paul","weight":3},{"source":"Tagliafico","target":"Hernández","weight":7},{"source":"Otamendi","target":"Gómez","weight":6},{"source":"Otamendi","target":"Allister","weight":31},{"source":"Otamendi","target":"Romero","weight":90},{"source":"Otamendi","target":"E. Martínez","weight":29},{"source":"Otamendi","target":"Fernandez","weight":79},{"source":"Otamendi","target":"Montiel","weight":18},{"source":"Otamendi","target":"Rodríguez","weight":15},{"source":"Otamendi","target":"Álvarez","weight":5},{"source":"Otamendi","target":"Lautaro","weight":1},{"source":"Otamendi","target":"Paredes","weight":48},{"source":"Otamendi","target":"Messi","weight":11},{"source":"Otamendi","target":"L. Martínez","weight":43},{"source":"Otamendi","target":"Acuña","weight":32},{"source":"Otamendi","target":"Lucero","weight":17},{"source":"Otamendi","target":"Tagliafico","weight":40},{"source":"Otamendi","target":"De Paul","weight":38},{"source":"Otamendi","target":"Hernández","weight":15},{"source":"De Paul","target":"Gómez","weight":7},{"source":"De Paul","target":"Allister","weight":15},{"source":"De Paul","target":"Romero","weight":54},{"source":"De Paul","target":"E. Martínez","weight":3},{"source":"De Paul","target":"Fernandez","weight":54},{"source":"De Paul","target":"Montiel","weight":8},{"source":"De Paul","target":"Rodríguez","weight":7},{"source":"De Paul","target":"Álvarez","weight":14},{"source":"De Paul","target":"Lautaro","weight":5},{"source":"De Paul","target":"Paredes","weight":24},{"source":"De Paul","target":"Messi","weight":89},{"source":"De Paul","target":"L. Martínez","weight":8},{"source":"De Paul","target":"Acuña","weight":7},{"source":"De Paul","target":"Lucero","weight":70},{"source":"De Paul","target":"Tagliafico","weight":1},{"source":"De Paul","target":"Otamendi","weight":63},{"source":"De Paul","target":"Hernández","weight":36},{"source":"Hernández","target":"Gómez","weight":1},{"source":"Hernández","target":"Allister","weight":6},{"source":"Hernández","target":"Romero","weight":2},{"source":"Hernández","target":"Fernandez","weight":10},{"source":"Hernández","target":"Montiel","weight":4},{"source":"Hernández","target":"Rodríguez","weight":1},{"source":"Hernández","target":"Álvarez","weight":5},{"source":"Hernández","target":"Lautaro","weight":3},{"source":"Hernández","target":"Paredes","weight":1},{"source":"Hernández","target":"Messi","weight":33},{"source":"Hernández","target":"Acuña","weight":4},{"source":"Hernández","target":"Lucero","weight":17},{"source":"Hernández","target":"Tagliafico","weight":5},{"source":"Hernández","target":"Otamendi","weight":8},{"source":"Hernández","target":"De Paul","weight":25},{"source":"Montiel","target":"Allister","weight":1},{"source":"Montiel","target":"E. Martínez","weight":1},{"source":"Montiel","target":"Fernandez","weight":4},{"source":"Montiel","target":"Rodríguez","weight":2},{"source":"Montiel","target":"Lautaro","weight":6},{"source":"Montiel","target":"Paredes","weight":3},{"source":"Montiel","target":"Messi","weight":11},{"source":"Montiel","target":"L. Martínez","weight":1},{"source":"Montiel","target":"Otamendi","weight":13},{"source":"Montiel","target":"De Paul","weight":13},{"source":"Montiel","target":"Hernández","weight":15},{"source":"Rodríguez","target":"Allister","weight":7},{"source":"Rodríguez","target":"Montiel","weight":5},{"source":"Rodríguez","target":"Messi","weight":7},{"source":"Rodríguez","target":"L. Martínez","weight":10},{"source":"Rodríguez","target":"Acuña","weight":2},{"source":"Rodríguez","target":"Otamendi","weight":13},{"source":"Rodríguez","target":"De Paul","weight":8},{"source":"Rodríguez","target":"Hernández","weight":2},{"source":"Lautaro","target":"Gómez","weight":1},{"source":"Lautaro","target":"Allister","weight":2},{"source":"Lautaro","target":"Fernandez","weight":4},{"source":"Lautaro","target":"Rodríguez","weight":2},{"source":"Lautaro","target":"Paredes","weight":8},{"source":"Lautaro","target":"Messi","weight":6},{"source":"Lautaro","target":"L. Martínez","weight":1},{"source":"Lautaro","target":"Acuña","weight":1},{"source":"Lautaro","target":"Lucero","weight":3},{"source":"Lautaro","target":"Tagliafico","weight":4},{"source":"Lautaro","target":"Otamendi","weight":1},{"source":"Lautaro","target":"De Paul","weight":5},{"source":"Lautaro","target":"Hernández","weight":1},{"source":"L. Martínez","target":"Allister","weight":10},{"source":"L. Martínez","target":"Romero","weight":3},{"source":"L. Martínez","target":"E. Martínez","weight":7},{"source":"L. Martínez","target":"Fernandez","weight":17},{"source":"L. Martínez","target":"Montiel","weight":2},{"source":"L. Martínez","target":"Rodríguez","weight":14},{"source":"L. Martínez","target":"Álvarez","weight":2},{"source":"L. Martínez","target":"Lautaro","weight":4},{"source":"L. Martínez","target":"Paredes","weight":2},{"source":"L. Martínez","target":"Messi","weight":2},{"source":"L. Martínez","target":"Acuña","weight":19},{"source":"L. Martínez","target":"Lucero","weight":1},{"source":"L. Martínez","target":"Tagliafico","weight":6},{"source":"L. Martínez","target":"Otamendi","weight":28},{"source":"L. Martínez","target":"De Paul","weight":10},{"source":"L. Martínez","target":"Hernández","weight":3},{"source":"E. Martínez","target":"Gómez","weight":1},{"source":"E. Martínez","target":"Allister","weight":3},{"source":"E. Martínez","target":"Romero","weight":17},{"source":"E. Martínez","target":"Fernandez","weight":6},{"source":"E. Martínez","target":"Montiel","weight":5},{"source":"E. Martínez","target":"Rodríguez","weight":1},{"source":"E. Martínez","target":"Álvarez","weight":4},{"source":"E. Martínez","target":"Lautaro","weight":3},{"source":"E. Martínez","target":"Paredes","weight":4},{"source":"E. Martínez","target":"Messi","weight":1},{"source":"E. Martínez","target":"L. Martínez","weight":6},{"source":"E. Martínez","target":"Acuña","weight":6},{"source":"E. Martínez","target":"Lucero","weight":8},{"source":"E. Martínez","target":"Tagliafico","weight":3},{"source":"E. Martínez","target":"Otamendi","weight":43},{"source":"E. Martínez","target":"De Paul","weight":2},{"source":"E. Martínez","target":"Hernández","weight":3}],"baseline":{"apl":0.07767035797415488,"eff":19.072636375931694,"comp":1,"n":18,"m":260,"passes":3756},"pivot":"Otamendi","pivot_outcome":{"apl":0.1012042184059541,"eff":15.016108715254333,"comp":1},"single":{"Gómez":{"apl":0.07068980967645119,"eff":20.469234932270762,"comp":1},"Allister":{"apl":0.07947072005215507,"eff":18.971713328524057,"comp":1},"Romero":{"apl":0.08085231678863053,"eff":17.90510327027635,"comp":1},"Fernandez":{"apl":0.08244689391577596,"eff":17.66394605119306,"comp":1},"Álvarez":{"apl":0.07578439802169958,"eff":19.94337161530265,"comp":1},"Paredes":{"apl":0.08120340008566433,"eff":19.000191910472125,"comp":1},"Messi":{"apl":0.08969314862467981,"eff":17.813564494043778,"comp":1},"Acuña":{"apl":0.07866004099884995,"eff":19.272948389892093,"comp":1},"Lucero":{"apl":0.0800076238997686,"eff":18.377377297970053,"comp":1},"Tagliafico":{"apl":0.07853240634092917,"eff":19.25491440181222,"comp":1},"Otamendi":{"apl":0.1012042184059541,"eff":15.016108715254333,"comp":1},"De Paul":{"apl":0.08429500121946869,"eff":16.670761122265915,"comp":1},"Hernández":{"apl":0.07784738889789335,"eff":19.487131807134205,"comp":1},"Montiel":{"apl":0.07433360221013698,"eff":20.147057112689858,"comp":1},"Rodríguez":{"apl":0.07314947561824836,"eff":20.268662320952792,"comp":1},"Lautaro":{"apl":0.06885391290957359,"eff":20.53034485038114,"comp":1},"L. Martínez":{"apl":0.07820402031238531,"eff":19.378586808606396,"comp":1},"E. Martínez":{"apl":0.07811448935558037,"eff":19.36904485394561,"comp":1}},"random":{"apl_mean":0.08009954193446876,"apl_std":0.006757040114791172,"eff_mean":18.7318464219824,"eff_std":1.3495740681811768,"apl_samples":[0.08244689391577596,0.07068980967645119,0.0800076238997686,0.07866004099884995,0.07866004099884995,0.07578439802169958,0.08244689391577596,0.08085231678863053,0.07433360221013698,0.07947072005215507,0.07068980967645119,0.08085231678863053,0.08969314862467981,0.07866004099884995,0.07820402031238531,0.07068980967645119,0.08969314862467981,0.07433360221013698,0.07866004099884995,0.07314947561824836,0.0800076238997686,0.07068980967645119,0.08120340008566433,0.07433360221013698,0.1012042184059541,0.0800076238997686,0.07578439802169958,0.08969314862467981,0.1012042184059541,0.08244689391577596,0.08085231678863053,0.07784738889789335,0.08244689391577596,0.08429500121946869,0.08429500121946869,0.0800076238997686,0.07947072005215507,0.07314947561824836,0.08244689391577596,0.07784738889789335,0.08085231678863053,0.07853240634092917,0.08429500121946869,0.08969314862467981,0.08085231678863053,0.07947072005215507,0.07866004099884995,0.07853240634092917,0.08085231678863053,0.07866004099884995,0.08244689391577596,0.07784738889789335,0.0800076238997686,0.07314947561824836,0.08429500121946869,0.08120340008566433,0.08429500121946869,0.08429500121946869,0.08969314862467981,0.0800076238997686,0.08085231678863053,0.08120340008566433,0.07866004099884995,0.08120340008566433,0.07314947561824836,0.07784738889789335,0.0800076238997686,0.07866004099884995,0.1012042184059541,0.07947072005215507,0.07866004099884995,0.07947072005215507,0.1012042184059541,0.07784738889789335,0.0800076238997686,0.08085231678863053,0.08969314862467981,0.1012042184059541,0.08969314862467981,0.06885391290957359,0.07784738889789335,0.07314947561824836,0.07578439802169958,0.0800076238997686,0.07578439802169958,0.07866004099884995,0.0800076238997686,0.07433360221013698,0.07784738889789335,0.08429500121946869,0.07866004099884995,0.07578439802169958,0.07820402031238531,0.06885391290957359,0.08085231678863053,0.07947072005215507,0.08244689391577596,0.07578439802169958,0.08120340008566433,0.07433360221013698,0.08085231678863053,0.07784738889789335,0.07784738889789335,0.07314947561824836,0.07820402031238531,0.0800076238997686,0.07068980967645119,0.08244689391577596,0.0800076238997686,0.1012042184059541,0.08244689391577596,0.07853240634092917,0.07433360221013698,0.08120340008566433,0.07314947561824836,0.07068980967645119,0.0800076238997686,0.07820402031238531,0.08120340008566433,0.07820402031238531,0.08244689391577596,0.07853240634092917,0.07820402031238531,0.08969314862467981,0.07578439802169958,0.08429500121946869,0.08120340008566433,0.07820402031238531,0.07068980967645119,0.1012042184059541,0.06885391290957359,0.07068980967645119,0.08244689391577596,0.08429500121946869,0.07853240634092917,0.07866004099884995,0.07947072005215507,0.07866004099884995,0.08085231678863053,0.08085231678863053,0.06885391290957359,0.08085231678863053,0.07578439802169958,0.07578439802169958,0.06885391290957359,0.08120340008566433,0.0800076238997686,0.07820402031238531,0.07433360221013698,0.08969314862467981,0.08969314862467981,0.07853240634092917,0.07784738889789335,0.08429500121946869,0.07314947561824836,0.07820402031238531,0.07314947561824836,0.08244689391577596,0.07866004099884995,0.07866004099884995,0.08085231678863053,0.1012042184059541,0.07068980967645119,0.07866004099884995,0.07866004099884995,0.07068980967645119,0.08085231678863053,0.07947072005215507,0.07866004099884995,0.08085231678863053,0.07947072005215507,0.1012042184059541,0.08085231678863053,0.07820402031238531,0.07866004099884995,0.0800076238997686,0.06885391290957359,0.08969314862467981,0.07578439802169958,0.06885391290957359,0.07866004099884995,0.06885391290957359,0.07433360221013698,0.08969314862467981,0.08244689391577596,0.08244689391577596,0.07433360221013698,0.08429500121946869,0.07433360221013698,0.07433360221013698,0.07314947561824836,0.07947072005215507,0.08244689391577596,0.07947072005215507,0.07784738889789335,0.1012042184059541,0.08244689391577596,0.07866004099884995,0.08969314862467981,0.08969314862467981],"eff_samples":[17.66394605119306,20.469234932270762,18.377377297970053,19.272948389892093,19.272948389892093,19.94337161530265,17.66394605119306,17.90510327027635,20.147057112689858,18.971713328524057,20.469234932270762,17.90510327027635,17.813564494043778,19.272948389892093,19.378586808606396,20.469234932270762,17.813564494043778,20.147057112689858,19.272948389892093,20.268662320952792,18.377377297970053,20.469234932270762,19.000191910472125,20.147057112689858,15.016108715254333,18.377377297970053,19.94337161530265,17.813564494043778,15.016108715254333,17.66394605119306,17.90510327027635,19.487131807134205,17.66394605119306,16.670761122265915,16.670761122265915,18.377377297970053,18.971713328524057,20.268662320952792,17.66394605119306,19.487131807134205,17.90510327027635,19.25491440181222,16.670761122265915,17.813564494043778,17.90510327027635,18.971713328524057,19.272948389892093,19.25491440181222,17.90510327027635,19.272948389892093,17.66394605119306,19.487131807134205,18.377377297970053,20.268662320952792,16.670761122265915,19.000191910472125,16.670761122265915,16.670761122265915,17.813564494043778,18.377377297970053,17.90510327027635,19.000191910472125,19.272948389892093,19.000191910472125,20.268662320952792,19.487131807134205,18.377377297970053,19.272948389892093,15.016108715254333,18.971713328524057,19.272948389892093,18.971713328524057,15.016108715254333,19.487131807134205,18.377377297970053,17.90510327027635,17.813564494043778,15.016108715254333,17.813564494043778,20.53034485038114,19.487131807134205,20.268662320952792,19.94337161530265,18.377377297970053,19.94337161530265,19.272948389892093,18.377377297970053,20.147057112689858,19.487131807134205,16.670761122265915,19.272948389892093,19.94337161530265,19.378586808606396,20.53034485038114,17.90510327027635,18.971713328524057,17.66394605119306,19.94337161530265,19.000191910472125,20.147057112689858,17.90510327027635,19.487131807134205,19.487131807134205,20.268662320952792,19.378586808606396,18.377377297970053,20.469234932270762,17.66394605119306,18.377377297970053,15.016108715254333,17.66394605119306,19.25491440181222,20.147057112689858,19.000191910472125,20.268662320952792,20.469234932270762,18.377377297970053,19.378586808606396,19.000191910472125,19.378586808606396,17.66394605119306,19.25491440181222,19.378586808606396,17.813564494043778,19.94337161530265,16.670761122265915,19.000191910472125,19.378586808606396,20.469234932270762,15.016108715254333,20.53034485038114,20.469234932270762,17.66394605119306,16.670761122265915,19.25491440181222,19.272948389892093,18.971713328524057,19.272948389892093,17.90510327027635,17.90510327027635,20.53034485038114,17.90510327027635,19.94337161530265,19.94337161530265,20.53034485038114,19.000191910472125,18.377377297970053,19.378586808606396,20.147057112689858,17.813564494043778,17.813564494043778,19.25491440181222,19.487131807134205,16.670761122265915,20.268662320952792,19.378586808606396,20.268662320952792,17.66394605119306,19.272948389892093,19.272948389892093,17.90510327027635,15.016108715254333,20.469234932270762,19.272948389892093,19.272948389892093,20.469234932270762,17.90510327027635,18.971713328524057,19.272948389892093,17.90510327027635,18.971713328524057,15.016108715254333,17.90510327027635,19.378586808606396,19.272948389892093,18.377377297970053,20.53034485038114,17.813564494043778,19.94337161530265,20.53034485038114,19.272948389892093,20.53034485038114,20.147057112689858,17.813564494043778,17.66394605119306,17.66394605119306,20.147057112689858,16.670761122265915,20.147057112689858,20.147057112689858,20.268662320952792,18.971713328524057,17.66394605119306,18.971713328524057,19.487131807134205,15.016108715254333,17.66394605119306,19.272948389892093,17.813564494043778,17.813564494043778],"n_samples":200},"z":{"apl":3.1233611334180433,"eff":2.7532669709160706},"progressive":[{"removed":[],"apl":0.07767035797415488,"eff":19.072636375931694,"comp":1,"n":18,"m":260,"passes":3756},{"removed":["Otamendi"],"apl":0.1012042184059541,"eff":15.016108715254333,"comp":1,"n":17,"m":226},{"removed":["Otamendi","De Paul"],"apl":0.11280517022917862,"eff":12.374645330740611,"comp":1,"n":16,"m":194},{"removed":["Otamendi","De Paul","Fernandez"],"apl":0.1315059440955046,"eff":10.374305287407683,"comp":1,"n":15,"m":166}]},"France":{"nodes":[{"id":"Tchouaméni","full":"Aurélien Djani Tchouaméni","x":58.53049645390071,"y":41.335697399527184,"line":"MID","minutes":630,"bc":0.5261904761904762,"out":423,"in":389},{"id":"Konaté","full":"Ibrahima Konaté","x":47.35609756097561,"y":38.165365853658535,"line":"DEF","minutes":270,"bc":0.14761904761904762,"out":205,"in":195},{"id":"Varane","full":"Raphaël Varane","x":45.8396,"y":54.998,"line":"DEF","minutes":540,"bc":0.14285714285714288,"out":250,"in":238},{"id":"Koundé","full":"Jules Koundé","x":55.033203125,"y":70.160546875,"line":"DEF","minutes":450,"bc":0.1285714285714286,"out":256,"in":214},{"id":"Upamecano","full":"Dayotchanculle Upamecano","x":47.954485049833885,"y":25.560797342192693,"line":"DEF","minutes":450,"bc":0.11190476190476191,"out":301,"in":288},{"id":"Hernández","full":"Theo Bernard François Hernández","x":64.87580071174376,"y":8.192170818505337,"line":"DEF","minutes":450,"bc":0.1,"out":281,"in":241},{"id":"Griezmann","full":"Antoine Griezmann","x":72.0621513944223,"y":45.53386454183267,"line":"MID","minutes":540,"bc":0.06190476190476191,"out":251,"in":256},{"id":"Mbappé","full":"Kylian Mbappé Lottin","x":83.90867052023121,"y":16.730635838150288,"line":"ATT","minutes":540,"bc":0.05714285714285715,"out":173,"in":274},{"id":"Lloris","full":"Hugo Lloris","x":11.615533980582525,"y":38.95436893203884,"line":"GK","minutes":540,"bc":0.004761904761904762,"out":103,"in":74},{"id":"Camavinga","full":"Eduardo Camavinga","x":63.94761904761905,"y":10.069047619047618,"line":"DEF","minutes":90,"bc":0.002380952380952381,"out":84,"in":75},{"id":"Rabiot","full":"Adrien Rabiot","x":65.36371308016878,"y":28.567510548523206,"line":"MID","minutes":450,"bc":0.0,"out":237,"in":243},{"id":"Disasi","full":"Axel Disasi","x":65.922,"y":72.6,"line":"DEF","minutes":90,"bc":0.0,"out":50,"in":47},{"id":"Pavard","full":"Benjamin Pavard","x":59.907407407407405,"y":67.46666666666667,"line":"DEF","minutes":90,"bc":0.0,"out":81,"in":70},{"id":"Coman","full":"Kingsley Coman","x":75.75555555555556,"y":67.35000000000001,"line":"ATT","minutes":90,"bc":0.0,"out":54,"in":68},{"id":"Giroud","full":"Olivier Giroud","x":68.82448979591837,"y":45.77142857142857,"line":"ATT","minutes":540,"bc":0.0,"out":49,"in":85},{"id":"Dembélé","full":"Ousmane Dembélé","x":81.45945945945945,"y":66.23648648648648,"line":"ATT","minutes":540,"bc":0.0,"out":148,"in":181},{"id":"Kolo Muani","full":"Randal Kolo Muani","x":82.07727272727273,"y":44.73636363636364,"line":"ATT","minutes":90,"bc":0.0,"out":22,"in":46},{"id":"Fofana","full":"Youssouf Fofana","x":61.160869565217396,"y":41.422826086956526,"line":"MID","minutes":180,"bc":0.0,"out":92,"in":92},{"id":"Veretout","full":"Jordan Veretout","x":60.796875,"y":27.559375,"line":"MID","minutes":90,"bc":0.0,"out":32,"in":30},{"id":"Pi","full":"Lucas Hernández Pi","x":61.6,"y":2.8333333333333335,"line":"DEF","minutes":90,"bc":0.0,"out":6,"in":6},{"id":"Olié","full":"Mattéo Guendouzi Olié","x":63.26923076923077,"y":41.7,"line":"ATT","minutes":90,"bc":0.0,"out":26,"in":20},{"id":"Mandanda","full":"Steve Mandanda","x":9.8375,"y":39.5,"line":"GK","minutes":90,"bc":0.0,"out":16,"in":8}],"links":[{"source":"Rabiot","target":"Griezmann","weight":26},{"source":"Rabiot","target":"Tchouaméni","weight":40},{"source":"Rabiot","target":"Disasi","weight":1},{"source":"Rabiot","target":"Pavard","weight":7},{"source":"Rabiot","target":"Upamecano","weight":25},{"source":"Rabiot","target":"Camavinga","weight":5},{"source":"Rabiot","target":"Lloris","weight":3},{"source":"Rabiot","target":"Konaté","weight":10},{"source":"Rabiot","target":"Koundé","weight":11},{"source":"Rabiot","target":"Coman","weight":4},{"source":"Rabiot","target":"Mbappé","weight":44},{"source":"Rabiot","target":"Giroud","weight":5},{"source":"Rabiot","target":"Dembélé","weight":7},{"source":"Rabiot","target":"Kolo Muani","weight":1},{"source":"Rabiot","target":"Varane","weight":10},{"source":"Rabiot","target":"Hernández","weight":35},{"source":"Rabiot","target":"Fofana","weight":3},{"source":"Griezmann","target":"Rabiot","weight":24},{"source":"Griezmann","target":"Tchouaméni","weight":33},{"source":"Griezmann","target":"Disasi","weight":6},{"source":"Griezmann","target":"Pavard","weight":9},{"source":"Griezmann","target":"Upamecano","weight":22},{"source":"Griezmann","target":"Camavinga","weight":7},{"source":"Griezmann","target":"Konaté","weight":12},{"source":"Griezmann","target":"Koundé","weight":15},{"source":"Griezmann","target":"Coman","weight":4},{"source":"Griezmann","target":"Mbappé","weight":40},{"source":"Griezmann","target":"Giroud","weight":14},{"source":"Griezmann","target":"Dembélé","weight":21},{"source":"Griezmann","target":"Kolo Muani","weight":7},{"source":"Griezmann","target":"Varane","weight":10},{"source":"Griezmann","target":"Hernández","weight":24},{"source":"Griezmann","target":"Fofana","weight":3},{"source":"Tchouaméni","target":"Rabiot","weight":44},{"source":"Tchouaméni","target":"Griezmann","weight":45},{"source":"Tchouaméni","target":"Disasi","weight":9},{"source":"Tchouaméni","target":"Pavard","weight":10},{"source":"Tchouaméni","target":"Upamecano","weight":42},{"source":"Tchouaméni","target":"Camavinga","weight":14},{"source":"Tchouaméni","target":"Lloris","weight":5},{"source":"Tchouaméni","target":"Konaté","weight":35},{"source":"Tchouaméni","target":"Veretout","weight":7},{"source":"Tchouaméni","target":"Koundé","weight":44},{"source":"Tchouaméni","target":"Coman","weight":7},{"source":"Tchouaméni","target":"Mbappé","weight":26},{"source":"Tchouaméni","target":"Pi","weight":1},{"source":"Tchouaméni","target":"Olié","weight":6},{"source":"Tchouaméni","target":"Giroud","weight":10},{"source":"Tchouaméni","target":"Dembélé","weight":23},{"source":"Tchouaméni","target":"Kolo Muani","weight":3},{"source":"Tchouaméni","target":"Varane","weight":32},{"source":"Tchouaméni","target":"Hernández","weight":40},{"source":"Tchouaméni","target":"Fofana","weight":20},{"source":"Disasi","target":"Griezmann","weight":1},{"source":"Disasi","target":"Tchouaméni","weight":14},{"source":"Disasi","target":"Camavinga","weight":1},{"source":"Disasi","target":"Lloris","weight":1},{"source":"Disasi","target":"Veretout","weight":2},{"source":"Disasi","target":"Coman","weight":11},{"source":"Disasi","target":"Mbappé","weight":1},{"source":"Disasi","target":"Olié","weight":3},{"source":"Disasi","target":"Dembélé","weight":1},{"source":"Disasi","target":"Kolo Muani","weight":4},{"source":"Disasi","target":"Varane","weight":7},{"source":"Disasi","target":"Fofana","weight":4},{"source":"Pavard","target":"Rabiot","weight":5},{"source":"Pavard","target":"Griezmann","weight":11},{"source":"Pavard","target":"Tchouaméni","weight":10},{"source":"Pavard","target":"Upamecano","weight":10},{"source":"Pavard","target":"Lloris","weight":1},{"source":"Pavard","target":"Konaté","weight":23},{"source":"Pavard","target":"Coman","weight":3},{"source":"Pavard","target":"Giroud","weight":2},{"source":"Pavard","target":"Dembélé","weight":15},{"source":"Pavard","target":"Fofana","weight":1},{"source":"Upamecano","target":"Rabiot","weight":32},{"source":"Upamecano","target":"Griezmann","weight":21},{"source":"Upamecano","target":"Tchouaméni","weight":41},{"source":"Upamecano","target":"Disasi","weight":1},{"source":"Upamecano","target":"Pavard","weight":7},{"source":"Upamecano","target":"Camavinga","weight":2},{"source":"Upamecano","target":"Lloris","weight":16},{"source":"Upamecano","target":"Konaté","weight":23},{"source":"Upamecano","target":"Koundé","weight":15},{"source":"Upamecano","target":"Mbappé","weight":15},{"source":"Upamecano","target":"Pi","weight":2},{"source":"Upamecano","target":"Giroud","weight":2},{"source":"Upamecano","target":"Dembélé","weight":8},{"source":"Upamecano","target":"Kolo Muani","weight":1},{"source":"Upamecano","target":"Varane","weight":41},{"source":"Upamecano","target":"Hernández","weight":68},{"source":"Upamecano","target":"Fofana","weight":6},{"source":"Camavinga","target":"Rabiot","weight":6},{"source":"Camavinga","target":"Griezmann","weight":1},{"source":"Camavinga","target":"Tchouaméni","weight":16},{"source":"Camavinga","target":"Upamecano","weight":7},{"source":"Camavinga","target":"Konaté","weight":10},{"source":"Camavinga","target":"Veretout","weight":7},{"source":"Camavinga","target":"Koundé","weight":1},{"source":"Camavinga","target":"Coman","weight":2},{"source":"Camavinga","target":"Mbappé","weight":15},{"source":"Camavinga","target":"Olié","weight":4},{"source":"Camavinga","target":"Kolo Muani","weight":7},{"source":"Camavinga","target":"Varane","weight":2},{"source":"Camavinga","target":"Mandanda","weight":1},{"source":"Camavinga","target":"Fofana","weight":5},{"source":"Lloris","target":"Rabiot","weight":5},{"source":"Lloris","target":"Griezmann","weight":4},{"source":"Lloris","target":"Tchouaméni","weight":5},{"source":"Lloris","target":"Pavard","weight":1},{"source":"Lloris","target":"Upamecano","weight":21},{"source":"Lloris","target":"Camavinga","weight":2},{"source":"Lloris","target":"Konaté","weight":13},{"source":"Lloris","target":"Koundé","weight":7},{"source":"Lloris","target":"Coman","weight":1},{"source":"Lloris","target":"Mbappé","weight":1},{"source":"Lloris","target":"Giroud","weight":15},{"source":"Lloris","target":"Dembélé","weight":1},{"source":"Lloris","target":"Kolo Muani","weight":2},{"source":"Lloris","target":"Varane","weight":18},{"source":"Lloris","target":"Hernández","weight":6},{"source":"Lloris","target":"Fofana","weight":1},{"source":"Konaté","target":"Rabiot","weight":15},{"source":"Konaté","target":"Griezmann","weight":13},{"source":"Konaté","target":"Tchouaméni","weight":22},{"source":"Konaté","target":"Disasi","weight":1},{"source":"Konaté","target":"Pavard","weight":22},{"source":"Konaté","target":"Upamecano","weight":27},{"source":"Konaté","target":"Camavinga","weight":16},{"source":"Konaté","target":"Lloris","weight":6},{"source":"Konaté","target":"Veretout","weight":3},{"source":"Konaté","target":"Koundé","weight":6},{"source":"Konaté","target":"Coman","weight":2},{"source":"Konaté","target":"Mbappé","weight":9},{"source":"Konaté","target":"Olié","weight":1},{"source":"Konaté","target":"Giroud","weight":1},{"source":"Konaté","target":"Dembélé","weight":4},{"source":"Konaté","target":"Kolo Muani","weight":3},{"source":"Konaté","target":"Varane","weight":31},{"source":"Konaté","target":"Mandanda","weight":3},{"source":"Konaté","target":"Hernández","weight":8},{"source":"Konaté","target":"Fofana","weight":12},{"source":"Koundé","target":"Rabiot","weight":7},{"source":"Koundé","target":"Griezmann","weight":27},{"source":"Koundé","target":"Tchouaméni","weight":41},{"source":"Koundé","target":"Upamecano","weight":9},{"source":"Koundé","target":"Lloris","weight":16},{"source":"Koundé","target":"Konaté","weight":6},{"source":"Koundé","target":"Coman","weight":18},{"source":"Koundé","target":"Mbappé","weight":2},{"source":"Koundé","target":"Giroud","weight":9},{"source":"Koundé","target":"Dembélé","weight":56},{"source":"Koundé","target":"Kolo Muani","weight":7},{"source":"Koundé","target":"Varane","weight":51},{"source":"Koundé","target":"Hernández","weight":2},{"source":"Koundé","target":"Fofana","weight":5},{"source":"Coman","target":"Rabiot","weight":5},{"source":"Coman","target":"Griezmann","weight":5},{"source":"Coman","target":"Tchouaméni","weight":10},{"source":"Coman","target":"Disasi","weight":3},{"source":"Coman","target":"Pavard","weight":3},{"source":"Coman","target":"Upamecano","weight":2},{"source":"Coman","target":"Konaté","weight":2},{"source":"Coman","target":"Veretout","weight":1},{"source":"Coman","target":"Koundé","weight":9},{"source":"Coman","target":"Mbappé","weight":2},{"source":"Coman","target":"Olié","weight":2},{"source":"Coman","target":"Varane","weight":4},{"source":"Coman","target":"Fofana","weight":6},{"source":"Mbappé","target":"Rabiot","weight":33},{"source":"Mbappé","target":"Griezmann","weight":24},{"source":"Mbappé","target":"Tchouaméni","weight":19},{"source":"Mbappé","target":"Pavard","weight":2},{"source":"Mbappé","target":"Upamecano","weight":9},{"source":"Mbappé","target":"Camavinga","weight":4},{"source":"Mbappé","target":"Konaté","weight":2},{"source":"Mbappé","target":"Koundé","weight":4},{"source":"Mbappé","target":"Coman","weight":2},{"source":"Mbappé","target":"Pi","weight":3},{"source":"Mbappé","target":"Giroud","weight":8},{"source":"Mbappé","target":"Dembélé","weight":14},{"source":"Mbappé","target":"Kolo Muani","weight":3},{"source":"Mbappé","target":"Varane","weight":2},{"source":"Mbappé","target":"Hernández","weight":41},{"source":"Mbappé","target":"Fofana","weight":3},{"source":"Giroud","target":"Rabiot","weight":2},{"source":"Giroud","target":"Griezmann","weight":9},{"source":"Giroud","target":"Tchouaméni","weight":11},{"source":"Giroud","target":"Koundé","weight":4},{"source":"Giroud","target":"Mbappé","weight":7},{"source":"Giroud","target":"Dembélé","weight":10},{"source":"Giroud","target":"Varane","weight":1},{"source":"Giroud","target":"Hernández","weight":2},{"source":"Giroud","target":"Fofana","weight":3},{"source":"Dembélé","target":"Rabiot","weight":13},{"source":"Dembélé","target":"Griezmann","weight":30},{"source":"Dembélé","target":"Tchouaméni","weight":21},{"source":"Dembélé","target":"Disasi","weight":4},{"source":"Dembélé","target":"Pavard","weight":7},{"source":"Dembélé","target":"Upamecano","weight":3},{"source":"Dembélé","target":"Camavinga","weight":2},{"source":"Dembélé","target":"Lloris","weight":1},{"source":"Dembélé","target":"Konaté","weight":4},{"source":"Dembélé","target":"Koundé","weight":29},{"source":"Dembélé","target":"Mbappé","weight":18},{"source":"Dembélé","target":"Giroud","weight":5},{"source":"Dembélé","target":"Varane","weight":7},{"source":"Dembélé","target":"Hernández","weight":4},{"source":"Kolo Muani","target":"Rabiot","weight":1},{"source":"Kolo Muani","target":"Griezmann","weight":2},{"source":"Kolo Muani","target":"Tchouaméni","weight":4},{"source":"Kolo Muani","target":"Disasi","weight":1},{"source":"Kolo Muani","target":"Camavinga","weight":2},{"source":"Kolo Muani","target":"Veretout","weight":1},{"source":"Kolo Muani","target":"Koundé","weight":3},{"source":"Kolo Muani","target":"Mbappé","weight":2},{"source":"Kolo Muani","target":"Olié","weight":2},{"source":"Kolo Muani","target":"Dembélé","weight":1},{"source":"Kolo Muani","target":"Varane","weight":2},{"source":"Kolo Muani","target":"Fofana","weight":1},{"source":"Varane","target":"Rabiot","weight":10},{"source":"Varane","target":"Griezmann","weight":14},{"source":"Varane","target":"Tchouaméni","weight":31},{"source":"Varane","target":"Disasi","weight":11},{"source":"Varane","target":"Upamecano","weight":36},{"source":"Varane","target":"Camavinga","weight":2},{"source":"Varane","target":"Lloris","weight":17},{"source":"Varane","target":"Konaté","weight":24},{"source":"Varane","target":"Veretout","weight":1},{"source":"Varane","target":"Koundé","weight":57},{"source":"Varane","target":"Coman","weight":3},{"source":"Varane","target":"Giroud","weight":6},{"source":"Varane","target":"Dembélé","weight":17},{"source":"Varane","target":"Kolo Muani","weight":1},{"source":"Varane","target":"Mandanda","weight":3},{"source":"Varane","target":"Hernández","weight":5},{"source":"Varane","target":"Fofana","weight":12},{"source":"Hernández","target":"Rabiot","weight":38},{"source":"Hernández","target":"Griezmann","weight":14},{"source":"Hernández","target":"Tchouaméni","weight":46},{"source":"Hernández","target":"Upamecano","weight":64},{"source":"Hernández","target":"Lloris","weight":8},{"source":"Hernández","target":"Konaté","weight":8},{"source":"Hernández","target":"Koundé","weight":2},{"source":"Hernández","target":"Coman","weight":1},{"source":"Hernández","target":"Mbappé","weight":80},{"source":"Hernández","target":"Giroud","weight":7},{"source":"Hernández","target":"Dembélé","weight":3},{"source":"Hernández","target":"Varane","weight":5},{"source":"Hernández","target":"Fofana","weight":5},{"source":"Fofana","target":"Rabiot","weight":3},{"source":"Fofana","target":"Griezmann","weight":7},{"source":"Fofana","target":"Tchouaméni","weight":7},{"source":"Fofana","target":"Disasi","weight":6},{"source":"Fofana","target":"Pavard","weight":2},{"source":"Fofana","target":"Upamecano","weight":8},{"source":"Fofana","target":"Camavinga","weight":4},{"source":"Fofana","target":"Konaté","weight":15},{"source":"Fofana","target":"Koundé","weight":7},{"source":"Fofana","target":"Coman","weight":9},{"source":"Fofana","target":"Mbappé","weight":9},{"source":"Fofana","target":"Giroud","weight":1},{"source":"Fofana","target":"Varane","weight":7},{"source":"Fofana","target":"Mandanda","weight":1},{"source":"Fofana","target":"Hernández","weight":6},{"source":"Veretout","target":"Tchouaméni","weight":8},{"source":"Veretout","target":"Disasi","weight":2},{"source":"Veretout","target":"Camavinga","weight":10},{"source":"Veretout","target":"Konaté","weight":5},{"source":"Veretout","target":"Olié","weight":2},{"source":"Veretout","target":"Kolo Muani","weight":2},{"source":"Veretout","target":"Varane","weight":2},{"source":"Veretout","target":"Fofana","weight":1},{"source":"Pi","target":"Upamecano","weight":3},{"source":"Pi","target":"Mbappé","weight":3},{"source":"Olié","target":"Griezmann","weight":2},{"source":"Olié","target":"Tchouaméni","weight":6},{"source":"Olié","target":"Disasi","weight":2},{"source":"Olié","target":"Camavinga","weight":2},{"source":"Olié","target":"Konaté","weight":1},{"source":"Olié","target":"Veretout","weight":7},{"source":"Olié","target":"Kolo Muani","weight":5},{"source":"Olié","target":"Varane","weight":1},{"source":"Mandanda","target":"Tchouaméni","weight":4},{"source":"Mandanda","target":"Camavinga","weight":2},{"source":"Mandanda","target":"Konaté","weight":2},{"source":"Mandanda","target":"Veretout","weight":1},{"source":"Mandanda","target":"Coman","weight":1},{"source":"Mandanda","target":"Varane","weight":5},{"source":"Mandanda","target":"Fofana","weight":1}],"baseline":{"apl":0.17085677993904141,"eff":11.009935448055232,"comp":1,"n":22,"m":290,"passes":3140},"pivot":"Tchouaméni","pivot_outcome":{"apl":0.21229392876526884,"eff":9.150624465618469,"comp":1},"single":{"Rabiot":{"apl":0.17665226112887367,"eff":10.52762338777085,"comp":1},"Griezmann":{"apl":0.17718914672909417,"eff":10.584929649539152,"comp":1},"Tchouaméni":{"apl":0.21229392876526884,"eff":9.150624465618469,"comp":1},"Disasi":{"apl":0.17057013666023105,"eff":11.397524300615979,"comp":1},"Pavard":{"apl":0.17246569660884914,"eff":11.247148624908306,"comp":1},"Upamecano":{"apl":0.17994402719466912,"eff":10.090307011404203,"comp":1},"Camavinga":{"apl":0.17316588524899781,"eff":11.250434846556681,"comp":1},"Lloris":{"apl":0.17326538074672468,"eff":11.170483977853094,"comp":1},"Konaté":{"apl":0.18025833047227632,"eff":10.560491589480613,"comp":1},"Koundé":{"apl":0.1814667256432184,"eff":10.153248548743733,"comp":1},"Coman":{"apl":0.17078356315443288,"eff":11.373703463377476,"comp":1},"Mbappé":{"apl":0.18363798545647422,"eff":10.482140897924143,"comp":1},"Giroud":{"apl":0.1702070293924353,"eff":11.407166730124358,"comp":1},"Dembélé":{"apl":0.17569428211955823,"eff":10.790283171436268,"comp":1},"Kolo Muani":{"apl":0.1599773569283075,"eff":11.705362864885522,"comp":1},"Varane":{"apl":0.18040456135941593,"eff":10.318149495169468,"comp":1},"Hernández":{"apl":0.17814092958844513,"eff":10.044872574022893,"comp":1},"Fofana":{"apl":0.17225198230746727,"eff":11.279722037808895,"comp":1},"Veretout":{"apl":0.16642670004073595,"eff":11.579613670749069,"comp":1},"Pi":{"apl":0.1454789939548019,"eff":11.868423581154532,"comp":1},"Olié":{"apl":0.16313163201352507,"eff":11.668690450015735,"comp":1},"Mandanda":{"apl":0.1521348828855034,"eff":11.806962156106705,"comp":1}},"random":{"apl_mean":0.1755583583814585,"apl_std":0.013087754880264495,"eff_mean":10.840947500796977,"eff_std":0.7221629227688119,"apl_samples":[0.17057013666023105,0.17665226112887367,0.1814667256432184,0.18025833047227632,0.18025833047227632,0.17246569660884914,0.17057013666023105,0.16642670004073595,0.21229392876526884,0.1454789939548019,0.1599773569283075,0.17718914672909417,0.17665226112887367,0.21229392876526884,0.17316588524899781,0.18025833047227632,0.17225198230746727,0.16313163201352507,0.17665226112887367,0.16642670004073595,0.17316588524899781,0.16642670004073595,0.1599773569283075,0.18025833047227632,0.18040456135941593,0.1454789939548019,0.1814667256432184,0.17665226112887367,0.17994402719466912,0.1599773569283075,0.18363798545647422,0.1814667256432184,0.17246569660884914,0.17316588524899781,0.18363798545647422,0.17057013666023105,0.21229392876526884,0.17569428211955823,0.17057013666023105,0.1702070293924353,0.1702070293924353,0.16313163201352507,0.1814667256432184,0.17718914672909417,0.18040456135941593,0.16642670004073595,0.17057013666023105,0.17569428211955823,0.21229392876526884,0.16642670004073595,0.17078356315443288,0.16313163201352507,0.1702070293924353,0.1454789939548019,0.17316588524899781,0.21229392876526884,0.17718914672909417,0.18025833047227632,0.17078356315443288,0.21229392876526884,0.18025833047227632,0.17057013666023105,0.17569428211955823,0.1814667256432184,0.18040456135941593,0.1702070293924353,0.17994402719466912,0.1702070293924353,0.1702070293924353,0.17316588524899781,0.1814667256432184,0.21229392876526884,0.16313163201352507,0.17994402719466912,0.16642670004073595,0.18025833047227632,0.17994402719466912,0.18040456135941593,0.17569428211955823,0.1814667256432184,0.16642670004073595,0.18025833047227632,0.18363798545647422,0.17718914672909417,0.18025833047227632,0.17718914672909417,0.18363798545647422,0.17569428211955823,0.1814667256432184,0.21229392876526884,0.17316588524899781,0.1454789939548019,0.18363798545647422,0.17316588524899781,0.17814092958844513,0.17569428211955823,0.18040456135941593,0.17246569660884914,0.1814667256432184,0.17246569660884914,0.18025833047227632,0.16642670004073595,0.16642670004073595,0.1814667256432184,0.1454789939548019,0.1599773569283075,0.1454789939548019,0.17569428211955823,0.1702070293924353,0.18025833047227632,0.17246569660884914,0.17225198230746727,0.17814092958844513,0.21229392876526884,0.17718914672909417,0.17057013666023105,0.17246569660884914,0.17994402719466912,0.1599773569283075,0.16313163201352507,0.21229392876526884,0.17569428211955823,0.17569428211955823,0.16313163201352507,0.18040456135941593,0.17225198230746727,0.1814667256432184,0.16642670004073595,0.17665226112887367,0.17057013666023105,0.16642670004073595,0.1814667256432184,0.18363798545647422,0.17057013666023105,0.17078356315443288,0.1599773569283075,0.17994402719466912,0.18040456135941593,0.17665226112887367,0.1814667256432184,0.17225198230746727,0.17994402719466912,0.17225198230746727,0.17057013666023105,0.17078356315443288,0.17225198230746727,0.16313163201352507,0.17316588524899781,0.17246569660884914,0.1702070293924353,0.17994402719466912,0.16642670004073595,0.17225198230746727,0.17665226112887367,0.16313163201352507,0.18363798545647422,0.17814092958844513,0.17665226112887367,0.17057013666023105,0.1702070293924353,0.17078356315443288,0.18025833047227632,0.17718914672909417,0.18025833047227632,0.1454789939548019,0.21229392876526884,0.21229392876526884,0.17814092958844513,0.21229392876526884,0.16642670004073595,0.17246569660884914,0.17246569660884914,0.17814092958844513,0.16642670004073595,0.17994402719466912,0.1814667256432184,0.17225198230746727,0.16313163201352507,0.1599773569283075,0.17316588524899781,0.16642670004073595,0.17316588524899781,0.17078356315443288,0.17569428211955823,0.1702070293924353,0.18040456135941593,0.17225198230746727,0.18040456135941593,0.17057013666023105,0.18025833047227632,0.18025833047227632,0.21229392876526884,0.18363798545647422,0.17665226112887367,0.1454789939548019,0.16642670004073595,0.18025833047227632,0.1454789939548019,0.18025833047227632,0.17665226112887367],"eff_samples":[11.397524300615979,10.52762338777085,10.153248548743733,10.560491589480613,10.560491589480613,11.247148624908306,11.397524300615979,11.579613670749069,9.150624465618469,11.868423581154532,11.705362864885522,10.584929649539152,10.52762338777085,9.150624465618469,11.250434846556681,10.560491589480613,11.279722037808895,11.668690450015735,10.52762338777085,11.579613670749069,11.250434846556681,11.579613670749069,11.705362864885522,10.560491589480613,10.318149495169468,11.868423581154532,10.153248548743733,10.52762338777085,10.090307011404203,11.705362864885522,10.482140897924143,10.153248548743733,11.247148624908306,11.250434846556681,10.482140897924143,11.397524300615979,9.150624465618469,10.790283171436268,11.397524300615979,11.407166730124358,11.407166730124358,11.668690450015735,10.153248548743733,10.584929649539152,10.318149495169468,11.579613670749069,11.397524300615979,10.790283171436268,9.150624465618469,11.579613670749069,11.373703463377476,11.668690450015735,11.407166730124358,11.868423581154532,11.250434846556681,9.150624465618469,10.584929649539152,10.560491589480613,11.373703463377476,9.150624465618469,10.560491589480613,11.397524300615979,10.790283171436268,10.153248548743733,10.318149495169468,11.407166730124358,10.090307011404203,11.407166730124358,11.407166730124358,11.250434846556681,10.153248548743733,9.150624465618469,11.668690450015735,10.090307011404203,11.579613670749069,10.560491589480613,10.090307011404203,10.318149495169468,10.790283171436268,10.153248548743733,11.579613670749069,10.560491589480613,10.482140897924143,10.584929649539152,10.560491589480613,10.584929649539152,10.482140897924143,10.790283171436268,10.153248548743733,9.150624465618469,11.250434846556681,11.868423581154532,10.482140897924143,11.250434846556681,10.044872574022893,10.790283171436268,10.318149495169468,11.247148624908306,10.153248548743733,11.247148624908306,10.560491589480613,11.579613670749069,11.579613670749069,10.153248548743733,11.868423581154532,11.705362864885522,11.868423581154532,10.790283171436268,11.407166730124358,10.560491589480613,11.247148624908306,11.279722037808895,10.044872574022893,9.150624465618469,10.584929649539152,11.397524300615979,11.247148624908306,10.090307011404203,11.705362864885522,11.668690450015735,9.150624465618469,10.790283171436268,10.790283171436268,11.668690450015735,10.318149495169468,11.279722037808895,10.153248548743733,11.579613670749069,10.52762338777085,11.397524300615979,11.579613670749069,10.153248548743733,10.482140897924143,11.397524300615979,11.373703463377476,11.705362864885522,10.090307011404203,10.318149495169468,10.52762338777085,10.153248548743733,11.279722037808895,10.090307011404203,11.279722037808895,11.397524300615979,11.373703463377476,11.279722037808895,11.668690450015735,11.250434846556681,11.247148624908306,11.407166730124358,10.090307011404203,11.579613670749069,11.279722037808895,10.52762338777085,11.668690450015735,10.482140897924143,10.044872574022893,10.52762338777085,11.397524300615979,11.407166730124358,11.373703463377476,10.560491589480613,10.584929649539152,10.560491589480613,11.868423581154532,9.150624465618469,9.150624465618469,10.044872574022893,9.150624465618469,11.579613670749069,11.247148624908306,11.247148624908306,10.044872574022893,11.579613670749069,10.090307011404203,10.153248548743733,11.279722037808895,11.668690450015735,11.705362864885522,11.250434846556681,11.579613670749069,11.250434846556681,11.373703463377476,10.790283171436268,11.407166730124358,10.318149495169468,11.279722037808895,10.318149495169468,11.397524300615979,10.560491589480613,10.560491589480613,9.150624465618469,10.482140897924143,10.52762338777085,11.868423581154532,11.579613670749069,10.560491589480613,11.868423581154532,10.560491589480613,10.52762338777085],"n_samples":200},"z":{"apl":2.8068657091985463,"eff":2.3406394622112665},"progressive":[{"removed":[],"apl":0.17085677993904141,"eff":11.009935448055232,"comp":1,"n":22,"m":290,"passes":3140},{"removed":["Tchouaméni"],"apl":0.21229392876526884,"eff":9.150624465618469,"comp":1,"n":21,"m":250},{"removed":["Tchouaméni","Varane"],"apl":0.2503088583581684,"eff":7.938544963848388,"comp":1,"n":20,"m":216},{"removed":["Tchouaméni","Varane","Griezmann"],"apl":0.26807671896915997,"eff":7.287904681995462,"comp":1,"n":19,"m":186}]},"Croatia":{"nodes":[{"id":"Gvardiol","full":"Joško Gvardiol","x":41.33563714902808,"y":23.78963282937365,"line":"DEF","minutes":630,"bc":0.2549019607843137,"out":463,"in":421},{"id":"Modrić","full":"Luka Modrić","x":61.09739696312365,"y":48.58329718004339,"line":"MID","minutes":630,"bc":0.2450980392156863,"out":461,"in":458},{"id":"Kovačić","full":"Mateo Kovačić","x":64.34867469879518,"y":25.293493975903612,"line":"MID","minutes":630,"bc":0.18300653594771243,"out":415,"in":408},{"id":"Juranović","full":"Josip Juranović","x":61.87777777777778,"y":70.4425925925926,"line":"DEF","minutes":540,"bc":0.17320261437908496,"out":324,"in":295},{"id":"Lovren","full":"Dejan Lovren","x":40.55085995085995,"y":52.66437346437347,"line":"DEF","minutes":540,"bc":0.1568627450980392,"out":407,"in":382},{"id":"Perišić","full":"Ivan Perišić","x":71.77370892018779,"y":12.810328638497651,"line":"DEF","minutes":630,"bc":0.14705882352941177,"out":213,"in":255},{"id":"Brozović","full":"Marcelo Brozović","x":57.833333333333336,"y":37.92632696390658,"line":"MID","minutes":540,"bc":0.10130718954248366,"out":471,"in":461},{"id":"Šutalo","full":"Josip Šutalo","x":36.82741935483871,"y":58.89677419354839,"line":"DEF","minutes":90,"bc":0.06535947712418301,"out":62,"in":61},{"id":"Sosa","full":"Borna Sosa","x":60.509459459459464,"y":7.728378378378379,"line":"DEF","minutes":450,"bc":0.042483660130718956,"out":222,"in":221},{"id":"Livaković","full":"Dominik Livaković","x":10.206349206349206,"y":40.46613756613757,"line":"GK","minutes":630,"bc":0.0032679738562091504,"out":189,"in":113},{"id":"Majer","full":"Lovro Majer","x":68.52250000000001,"y":46.69,"line":"ATT","minutes":90,"bc":0.0032679738562091504,"out":80,"in":95},{"id":"Kramarić","full":"Andrej Kramarić","x":76.39006622516555,"y":46.24966887417219,"line":"MID","minutes":630,"bc":0.0,"out":151,"in":178},{"id":"Petković","full":"Bruno Petković","x":78.9590909090909,"y":33.518181818181816,"line":"ATT","minutes":90,"bc":0.0,"out":44,"in":92},{"id":"Stanišić","full":"Josip Stanišić","x":51.394444444444446,"y":68.20277777777778,"line":"DEF","minutes":90,"bc":0.0,"out":36,"in":32},{"id":"Pašalić","full":"Mario Pašalić","x":63.56623376623377,"y":54.55324675324676,"line":"ATT","minutes":180,"bc":0.0,"out":77,"in":85},{"id":"Livaja","full":"Marko Livaja","x":78.11142857142858,"y":33.54857142857143,"line":"ATT","minutes":270,"bc":0.0,"out":35,"in":63},{"id":"Oršić","full":"Mislav Oršić","x":81.55714285714286,"y":16.211904761904762,"line":"ATT","minutes":90,"bc":0.0,"out":42,"in":58},{"id":"Vlašić","full":"Nikola Vlašić","x":69.64651162790697,"y":53.20232558139534,"line":"ATT","minutes":90,"bc":0.0,"out":43,"in":64},{"id":"Barišić","full":"Borna Barišić","x":60.382,"y":8.144,"line":"DEF","minutes":90,"bc":0.0,"out":50,"in":43}],"links":[{"source":"Kramarić","target":"Sosa","weight":14},{"source":"Kramarić","target":"Petković","weight":1},{"source":"Kramarić","target":"Lovren","weight":11},{"source":"Kramarić","target":"Livaković","weight":1},{"source":"Kramarić","target":"Perišić","weight":17},{"source":"Kramarić","target":"Juranović","weight":16},{"source":"Kramarić","target":"Stanišić","weight":1},{"source":"Kramarić","target":"Šutalo","weight":1},{"source":"Kramarić","target":"Gvardiol","weight":3},{"source":"Kramarić","target":"Majer","weight":1},{"source":"Kramarić","target":"Modrić","weight":29},{"source":"Kramarić","target":"Brozović","weight":23},{"source":"Kramarić","target":"Pašalić","weight":1},{"source":"Kramarić","target":"Livaja","weight":3},{"source":"Kramarić","target":"Kovačić","weight":22},{"source":"Kramarić","target":"Oršić","weight":5},{"source":"Kramarić","target":"Vlašić","weight":2},{"source":"Sosa","target":"Kramarić","weight":17},{"source":"Sosa","target":"Petković","weight":11},{"source":"Sosa","target":"Lovren","weight":3},{"source":"Sosa","target":"Livaković","weight":5},{"source":"Sosa","target":"Perišić","weight":45},{"source":"Sosa","target":"Juranović","weight":1},{"source":"Sosa","target":"Gvardiol","weight":48},{"source":"Sosa","target":"Majer","weight":1},{"source":"Sosa","target":"Modrić","weight":6},{"source":"Sosa","target":"Brozović","weight":23},{"source":"Sosa","target":"Pašalić","weight":4},{"source":"Sosa","target":"Livaja","weight":11},{"source":"Sosa","target":"Kovačić","weight":45},{"source":"Sosa","target":"Oršić","weight":1},{"source":"Sosa","target":"Vlašić","weight":1},{"source":"Petković","target":"Kramarić","weight":1},{"source":"Petković","target":"Sosa","weight":1},{"source":"Petković","target":"Perišić","weight":10},{"source":"Petković","target":"Juranović","weight":4},{"source":"Petković","target":"Šutalo","weight":1},{"source":"Petković","target":"Gvardiol","weight":2},{"source":"Petković","target":"Modrić","weight":6},{"source":"Petković","target":"Brozović","weight":5},{"source":"Petković","target":"Pašalić","weight":2},{"source":"Petković","target":"Kovačić","weight":5},{"source":"Petković","target":"Oršić","weight":5},{"source":"Petković","target":"Vlašić","weight":2},{"source":"Lovren","target":"Kramarić","weight":4},{"source":"Lovren","target":"Barišić","weight":2},{"source":"Lovren","target":"Sosa","weight":9},{"source":"Lovren","target":"Petković","weight":3},{"source":"Lovren","target":"Livaković","weight":44},{"source":"Lovren","target":"Perišić","weight":5},{"source":"Lovren","target":"Juranović","weight":91},{"source":"Lovren","target":"Gvardiol","weight":94},{"source":"Lovren","target":"Majer","weight":6},{"source":"Lovren","target":"Modrić","weight":57},{"source":"Lovren","target":"Brozović","weight":60},{"source":"Lovren","target":"Pašalić","weight":6},{"source":"Lovren","target":"Livaja","weight":1},{"source":"Lovren","target":"Kovačić","weight":19},{"source":"Lovren","target":"Oršić","weight":1},{"source":"Lovren","target":"Vlašić","weight":5},{"source":"Livaković","target":"Barišić","weight":1},{"source":"Livaković","target":"Sosa","weight":6},{"source":"Livaković","target":"Petković","weight":13},{"source":"Livaković","target":"Lovren","weight":55},{"source":"Livaković","target":"Perišić","weight":10},{"source":"Livaković","target":"Juranović","weight":12},{"source":"Livaković","target":"Stanišić","weight":1},{"source":"Livaković","target":"Šutalo","weight":7},{"source":"Livaković","target":"Gvardiol","weight":54},{"source":"Livaković","target":"Majer","weight":2},{"source":"Livaković","target":"Modrić","weight":3},{"source":"Livaković","target":"Brozović","weight":16},{"source":"Livaković","target":"Pašalić","weight":3},{"source":"Livaković","target":"Kovačić","weight":3},{"source":"Livaković","target":"Oršić","weight":2},{"source":"Livaković","target":"Vlašić","weight":1},{"source":"Perišić","target":"Kramarić","weight":16},{"source":"Perišić","target":"Sosa","weight":29},{"source":"Perišić","target":"Petković","weight":6},{"source":"Perišić","target":"Lovren","weight":7},{"source":"Perišić","target":"Livaković","weight":5},{"source":"Perišić","target":"Juranović","weight":6},{"source":"Perišić","target":"Šutalo","weight":1},{"source":"Perišić","target":"Gvardiol","weight":30},{"source":"Perišić","target":"Majer","weight":3},{"source":"Perišić","target":"Modrić","weight":21},{"source":"Perišić","target":"Brozović","weight":17},{"source":"Perišić","target":"Pašalić","weight":1},{"source":"Perišić","target":"Livaja","weight":8},{"source":"Perišić","target":"Kovačić","weight":47},{"source":"Perišić","target":"Oršić","weight":14},{"source":"Perišić","target":"Vlašić","weight":2},{"source":"Juranović","target":"Kramarić","weight":30},{"source":"Juranović","target":"Barišić","weight":1},{"source":"Juranović","target":"Sosa","weight":1},{"source":"Juranović","target":"Petković","weight":9},{"source":"Juranović","target":"Lovren","weight":73},{"source":"Juranović","target":"Livaković","weight":8},{"source":"Juranović","target":"Perišić","weight":10},{"source":"Juranović","target":"Gvardiol","weight":7},{"source":"Juranović","target":"Majer","weight":15},{"source":"Juranović","target":"Modrić","weight":80},{"source":"Juranović","target":"Brozović","weight":46},{"source":"Juranović","target":"Pašalić","weight":20},{"source":"Juranović","target":"Livaja","weight":7},{"source":"Juranović","target":"Kovačić","weight":5},{"source":"Juranović","target":"Oršić","weight":1},{"source":"Juranović","target":"Vlašić","weight":11},{"source":"Stanišić","target":"Kramarić","weight":4},{"source":"Stanišić","target":"Livaković","weight":1},{"source":"Stanišić","target":"Perišić","weight":1},{"source":"Stanišić","target":"Šutalo","weight":12},{"source":"Stanišić","target":"Gvardiol","weight":2},{"source":"Stanišić","target":"Majer","weight":5},{"source":"Stanišić","target":"Modrić","weight":7},{"source":"Stanišić","target":"Kovačić","weight":1},{"source":"Stanišić","target":"Vlašić","weight":3},{"source":"Šutalo","target":"Kramarić","weight":1},{"source":"Šutalo","target":"Livaković","weight":7},{"source":"Šutalo","target":"Perišić","weight":2},{"source":"Šutalo","target":"Stanišić","weight":10},{"source":"Šutalo","target":"Gvardiol","weight":16},{"source":"Šutalo","target":"Majer","weight":3},{"source":"Šutalo","target":"Modrić","weight":12},{"source":"Šutalo","target":"Pašalić","weight":2},{"source":"Šutalo","target":"Kovačić","weight":8},{"source":"Šutalo","target":"Oršić","weight":1},{"source":"Gvardiol","target":"Kramarić","weight":13},{"source":"Gvardiol","target":"Barišić","weight":12},{"source":"Gvardiol","target":"Sosa","weight":57},{"source":"Gvardiol","target":"Petković","weight":6},{"source":"Gvardiol","target":"Lovren","weight":107},{"source":"Gvardiol","target":"Livaković","weight":31},{"source":"Gvardiol","target":"Perišić","weight":31},{"source":"Gvardiol","target":"Juranović","weight":8},{"source":"Gvardiol","target":"Stanišić","weight":1},{"source":"Gvardiol","target":"Šutalo","weight":14},{"source":"Gvardiol","target":"Majer","weight":3},{"source":"Gvardiol","target":"Modrić","weight":31},{"source":"Gvardiol","target":"Brozović","weight":64},{"source":"Gvardiol","target":"Pašalić","weight":3},{"source":"Gvardiol","target":"Livaja","weight":6},{"source":"Gvardiol","target":"Kovačić","weight":65},{"source":"Gvardiol","target":"Oršić","weight":8},{"source":"Gvardiol","target":"Vlašić","weight":3},{"source":"Majer","target":"Sosa","weight":3},{"source":"Majer","target":"Petković","weight":3},{"source":"Majer","target":"Lovren","weight":6},{"source":"Majer","target":"Livaković","weight":1},{"source":"Majer","target":"Perišić","weight":4},{"source":"Majer","target":"Juranović","weight":14},{"source":"Majer","target":"Stanišić","weight":6},{"source":"Majer","target":"Šutalo","weight":3},{"source":"Majer","target":"Gvardiol","weight":8},{"source":"Majer","target":"Modrić","weight":9},{"source":"Majer","target":"Brozović","weight":9},{"source":"Majer","target":"Livaja","weight":5},{"source":"Majer","target":"Kovačić","weight":5},{"source":"Majer","target":"Oršić","weight":3},{"source":"Majer","target":"Vlašić","weight":1},{"source":"Modrić","target":"Kramarić","weight":29},{"source":"Modrić","target":"Barišić","weight":3},{"source":"Modrić","target":"Sosa","weight":20},{"source":"Modrić","target":"Petković","weight":9},{"source":"Modrić","target":"Lovren","weight":32},{"source":"Modrić","target":"Perišić","weight":36},{"source":"Modrić","target":"Juranović","weight":64},{"source":"Modrić","target":"Stanišić","weight":5},{"source":"Modrić","target":"Šutalo","weight":12},{"source":"Modrić","target":"Gvardiol","weight":38},{"source":"Modrić","target":"Majer","weight":13},{"source":"Modrić","target":"Brozović","weight":93},{"source":"Modrić","target":"Pašalić","weight":22},{"source":"Modrić","target":"Livaja","weight":6},{"source":"Modrić","target":"Kovačić","weight":63},{"source":"Modrić","target":"Oršić","weight":2},{"source":"Modrić","target":"Vlašić","weight":14},{"source":"Brozović","target":"Kramarić","weight":25},{"source":"Brozović","target":"Barišić","weight":15},{"source":"Brozović","target":"Sosa","weight":41},{"source":"Brozović","target":"Petković","weight":2},{"source":"Brozović","target":"Lovren","weight":45},{"source":"Brozović","target":"Livaković","weight":5},{"source":"Brozović","target":"Perišić","weight":20},{"source":"Brozović","target":"Juranović","weight":44},{"source":"Brozović","target":"Gvardiol","weight":57},{"source":"Brozović","target":"Majer","weight":14},{"source":"Brozović","target":"Modrić","weight":89},{"source":"Brozović","target":"Pašalić","weight":10},{"source":"Brozović","target":"Livaja","weight":2},{"source":"Brozović","target":"Kovačić","weight":92},{"source":"Brozović","target":"Oršić","weight":1},{"source":"Brozović","target":"Vlašić","weight":9},{"source":"Pašalić","target":"Kramarić","weight":5},{"source":"Pašalić","target":"Sosa","weight":6},{"source":"Pašalić","target":"Petković","weight":2},{"source":"Pašalić","target":"Lovren","weight":5},{"source":"Pašalić","target":"Perišić","weight":1},{"source":"Pašalić","target":"Juranović","weight":13},{"source":"Pašalić","target":"Stanišić","weight":3},{"source":"Pašalić","target":"Gvardiol","weight":1},{"source":"Pašalić","target":"Majer","weight":3},{"source":"Pašalić","target":"Modrić","weight":14},{"source":"Pašalić","target":"Brozović","weight":12},{"source":"Pašalić","target":"Livaja","weight":1},{"source":"Pašalić","target":"Kovačić","weight":6},{"source":"Pašalić","target":"Oršić","weight":4},{"source":"Pašalić","target":"Vlašić","weight":1},{"source":"Livaja","target":"Kramarić","weight":3},{"source":"Livaja","target":"Sosa","weight":1},{"source":"Livaja","target":"Petković","weight":1},{"source":"Livaja","target":"Lovren","weight":1},{"source":"Livaja","target":"Perišić","weight":4},{"source":"Livaja","target":"Gvardiol","weight":1},{"source":"Livaja","target":"Majer","weight":6},{"source":"Livaja","target":"Modrić","weight":1},{"source":"Livaja","target":"Brozović","weight":5},{"source":"Livaja","target":"Kovačić","weight":9},{"source":"Livaja","target":"Oršić","weight":3},{"source":"Kovačić","target":"Kramarić","weight":22},{"source":"Kovačić","target":"Barišić","weight":4},{"source":"Kovačić","target":"Sosa","weight":33},{"source":"Kovačić","target":"Petković","weight":13},{"source":"Kovačić","target":"Lovren","weight":31},{"source":"Kovačić","target":"Livaković","weight":4},{"source":"Kovačić","target":"Perišić","weight":46},{"source":"Kovačić","target":"Juranović","weight":12},{"source":"Kovačić","target":"Stanišić","weight":3},{"source":"Kovačić","target":"Šutalo","weight":10},{"source":"Kovačić","target":"Gvardiol","weight":41},{"source":"Kovačić","target":"Majer","weight":10},{"source":"Kovačić","target":"Modrić","weight":86},{"source":"Kovačić","target":"Brozović","weight":77},{"source":"Kovačić","target":"Pašalić","weight":7},{"source":"Kovačić","target":"Livaja","weight":8},{"source":"Kovačić","target":"Oršić","weight":4},{"source":"Kovačić","target":"Vlašić","weight":4},{"source":"Oršić","target":"Kramarić","weight":5},{"source":"Oršić","target":"Petković","weight":5},{"source":"Oršić","target":"Lovren","weight":1},{"source":"Oršić","target":"Perišić","weight":7},{"source":"Oršić","target":"Gvardiol","weight":2},{"source":"Oršić","target":"Majer","weight":6},{"source":"Oršić","target":"Modrić","weight":1},{"source":"Oršić","target":"Livaja","weight":5},{"source":"Oršić","target":"Kovačić","weight":6},{"source":"Oršić","target":"Vlašić","weight":4},{"source":"Vlašić","target":"Kramarić","weight":1},{"source":"Vlašić","target":"Barišić","weight":5},{"source":"Vlašić","target":"Petković","weight":3},{"source":"Vlašić","target":"Lovren","weight":4},{"source":"Vlašić","target":"Juranović","weight":10},{"source":"Vlašić","target":"Stanišić","weight":2},{"source":"Vlašić","target":"Gvardiol","weight":1},{"source":"Vlašić","target":"Majer","weight":3},{"source":"Vlašić","target":"Modrić","weight":4},{"source":"Vlašić","target":"Brozović","weight":3},{"source":"Vlašić","target":"Pašalić","weight":3},{"source":"Vlašić","target":"Kovačić","weight":2},{"source":"Vlašić","target":"Oršić","weight":2},{"source":"Barišić","target":"Kramarić","weight":2},{"source":"Barišić","target":"Petković","weight":5},{"source":"Barišić","target":"Lovren","weight":1},{"source":"Barišić","target":"Livaković","weight":1},{"source":"Barišić","target":"Perišić","weight":6},{"source":"Barišić","target":"Gvardiol","weight":16},{"source":"Barišić","target":"Majer","weight":1},{"source":"Barišić","target":"Modrić","weight":2},{"source":"Barišić","target":"Brozović","weight":8},{"source":"Barišić","target":"Pašalić","weight":1},{"source":"Barišić","target":"Kovačić","weight":5},{"source":"Barišić","target":"Oršić","weight":1},{"source":"Barišić","target":"Vlašić","weight":1}],"baseline":{"apl":0.10820535287905399,"eff":16.6705949050094,"comp":1,"n":19,"m":273,"passes":3785},"pivot":"Gvardiol","pivot_outcome":{"apl":0.11928040044148858,"eff":14.58677567964761,"comp":1},"single":{"Kramarić":{"apl":0.10991045951816727,"eff":16.9727634092809,"comp":1},"Sosa":{"apl":0.1129291510880458,"eff":16.15577245859631,"comp":1},"Petković":{"apl":0.10298321652518859,"eff":17.766275034452182,"comp":1},"Lovren":{"apl":0.11410131762360289,"eff":14.802183389152061,"comp":1},"Livaković":{"apl":0.11107538020134297,"eff":16.479413846993822,"comp":1},"Perišić":{"apl":0.11668181193413588,"eff":16.23181265129197,"comp":1},"Juranović":{"apl":0.12180424103666855,"eff":15.210114043073018,"comp":1},"Stanišić":{"apl":0.09754073568364564,"eff":17.99175655754079,"comp":1},"Šutalo":{"apl":0.10848127602234425,"eff":17.48587373671132,"comp":1},"Gvardiol":{"apl":0.11928040044148858,"eff":14.58677567964761,"comp":1},"Majer":{"apl":0.10618096581103449,"eff":17.58845992017352,"comp":1},"Modrić":{"apl":0.11657582918394382,"eff":14.870518187160961,"comp":1},"Brozović":{"apl":0.11432167088726154,"eff":14.996831986167303,"comp":1},"Pašalić":{"apl":0.1070306478426823,"eff":17.430661834042162,"comp":1},"Livaja":{"apl":0.10174461669990556,"eff":17.85707213520355,"comp":1},"Kovačić":{"apl":0.11921466024675212,"eff":15.002564494942712,"comp":1},"Oršić":{"apl":0.10061614868830576,"eff":17.8700398858098,"comp":1},"Vlašić":{"apl":0.10360297262751131,"eff":17.73220618056087,"comp":1},"Barišić":{"apl":0.10609815565327893,"eff":17.552560642143707,"comp":1}},"random":{"apl_mean":0.10980770619087336,"apl_std":0.00681482752727216,"eff_mean":16.603079890951904,"eff_std":1.2723066490488097,"apl_samples":[0.11410131762360289,0.10991045951816727,0.11928040044148858,0.10848127602234425,0.10848127602234425,0.11668181193413588,0.11410131762360289,0.10609815565327893,0.10298321652518859,0.10174461669990556,0.1129291510880458,0.10991045951816727,0.10298321652518859,0.09754073568364564,0.10848127602234425,0.10360297262751131,0.10991045951816727,0.10609815565327893,0.09754073568364564,0.10609815565327893,0.10174461669990556,0.10848127602234425,0.11921466024675212,0.11928040044148858,0.10991045951816727,0.12180424103666855,0.10174461669990556,0.11657582918394382,0.11928040044148858,0.11668181193413588,0.09754073568364564,0.11657582918394382,0.11410131762360289,0.10298321652518859,0.1070306478426823,0.11410131762360289,0.11432167088726154,0.11432167088726154,0.11928040044148858,0.1129291510880458,0.11921466024675212,0.10609815565327893,0.11410131762360289,0.1070306478426823,0.10298321652518859,0.10609815565327893,0.10618096581103449,0.11432167088726154,0.09754073568364564,0.10298321652518859,0.1129291510880458,0.10848127602234425,0.10618096581103449,0.10298321652518859,0.10848127602234425,0.11410131762360289,0.1070306478426823,0.11928040044148858,0.11921466024675212,0.11432167088726154,0.12180424103666855,0.11432167088726154,0.11432167088726154,0.09754073568364564,0.11928040044148858,0.10298321652518859,0.12180424103666855,0.10609815565327893,0.10848127602234425,0.12180424103666855,0.11921466024675212,0.1070306478426823,0.11928040044148858,0.10609815565327893,0.10848127602234425,0.11657582918394382,0.1129291510880458,0.10848127602234425,0.1129291510880458,0.11657582918394382,0.1070306478426823,0.11928040044148858,0.10298321652518859,0.09754073568364564,0.11657582918394382,0.09754073568364564,0.10061614868830576,0.1070306478426823,0.11921466024675212,0.11668181193413588,0.11928040044148858,0.11668181193413588,0.10848127602234425,0.10609815565327893,0.10609815565327893,0.11928040044148858,0.10174461669990556,0.1070306478426823,0.11432167088726154,0.10848127602234425,0.11668181193413588,0.10360297262751131,0.10061614868830576,0.10298321652518859,0.1129291510880458,0.11410131762360289,0.11668181193413588,0.12180424103666855,0.10174461669990556,0.10298321652518859,0.1070306478426823,0.1070306478426823,0.11921466024675212,0.10360297262751131,0.11928040044148858,0.10609815565327893,0.10991045951816727,0.11410131762360289,0.10609815565327893,0.11928040044148858,0.11657582918394382,0.11410131762360289,0.10618096581103449,0.10174461669990556,0.12180424103666855,0.11921466024675212,0.10991045951816727,0.11928040044148858,0.10360297262751131,0.12180424103666855,0.10360297262751131,0.11410131762360289,0.10618096581103449,0.10360297262751131,0.09754073568364564,0.11668181193413588,0.11432167088726154,0.12180424103666855,0.10609815565327893,0.10360297262751131,0.10991045951816727,0.11657582918394382,0.10061614868830576,0.10991045951816727,0.11410131762360289,0.11432167088726154,0.10618096581103449,0.10848127602234425,0.1129291510880458,0.10848127602234425,0.10298321652518859,0.10298321652518859,0.10061614868830576,0.10298321652518859,0.10609815565327893,0.11668181193413588,0.11668181193413588,0.10061614868830576,0.10609815565327893,0.12180424103666855,0.11928040044148858,0.10360297262751131,0.10174461669990556,0.09754073568364564,0.10609815565327893,0.09754073568364564,0.10618096581103449,0.1070306478426823,0.11432167088726154,0.11921466024675212,0.10360297262751131,0.11921466024675212,0.11410131762360289,0.10848127602234425,0.10848127602234425,0.10298321652518859,0.11657582918394382,0.10991045951816727,0.10609815565327893,0.10848127602234425,0.10848127602234425,0.10991045951816727,0.10298321652518859,0.1129291510880458,0.10848127602234425,0.10298321652518859,0.1129291510880458,0.11657582918394382,0.10298321652518859,0.10360297262751131,0.10848127602234425,0.11928040044148858,0.10061614868830576,0.09754073568364564,0.10609815565327893,0.11668181193413588,0.10061614868830576,0.10848127602234425,0.10061614868830576,0.10174461669990556],"eff_samples":[14.802183389152061,16.9727634092809,14.58677567964761,17.48587373671132,17.48587373671132,16.23181265129197,14.802183389152061,17.552560642143707,17.766275034452182,17.85707213520355,16.15577245859631,16.9727634092809,17.766275034452182,17.99175655754079,17.48587373671132,17.73220618056087,16.9727634092809,17.552560642143707,17.99175655754079,17.552560642143707,17.85707213520355,17.48587373671132,15.002564494942712,14.58677567964761,16.9727634092809,15.210114043073018,17.85707213520355,14.870518187160961,14.58677567964761,16.23181265129197,17.99175655754079,14.870518187160961,14.802183389152061,17.766275034452182,17.430661834042162,14.802183389152061,14.996831986167303,14.996831986167303,14.58677567964761,16.15577245859631,15.002564494942712,17.552560642143707,14.802183389152061,17.430661834042162,17.766275034452182,17.552560642143707,17.58845992017352,14.996831986167303,17.99175655754079,17.766275034452182,16.15577245859631,17.48587373671132,17.58845992017352,17.766275034452182,17.48587373671132,14.802183389152061,17.430661834042162,14.58677567964761,15.002564494942712,14.996831986167303,15.210114043073018,14.996831986167303,14.996831986167303,17.99175655754079,14.58677567964761,17.766275034452182,15.210114043073018,17.552560642143707,17.48587373671132,15.210114043073018,15.002564494942712,17.430661834042162,14.58677567964761,17.552560642143707,17.48587373671132,14.870518187160961,16.15577245859631,17.48587373671132,16.15577245859631,14.870518187160961,17.430661834042162,14.58677567964761,17.766275034452182,17.99175655754079,14.870518187160961,17.99175655754079,17.8700398858098,17.430661834042162,15.002564494942712,16.23181265129197,14.58677567964761,16.23181265129197,17.48587373671132,17.552560642143707,17.552560642143707,14.58677567964761,17.85707213520355,17.430661834042162,14.996831986167303,17.48587373671132,16.23181265129197,17.73220618056087,17.8700398858098,17.766275034452182,16.15577245859631,14.802183389152061,16.23181265129197,15.210114043073018,17.85707213520355,17.766275034452182,17.430661834042162,17.430661834042162,15.002564494942712,17.73220618056087,14.58677567964761,17.552560642143707,16.9727634092809,14.802183389152061,17.552560642143707,14.58677567964761,14.870518187160961,14.802183389152061,17.58845992017352,17.85707213520355,15.210114043073018,15.002564494942712,16.9727634092809,14.58677567964761,17.73220618056087,15.210114043073018,17.73220618056087,14.802183389152061,17.58845992017352,17.73220618056087,17.99175655754079,16.23181265129197,14.996831986167303,15.210114043073018,17.552560642143707,17.73220618056087,16.9727634092809,14.870518187160961,17.8700398858098,16.9727634092809,14.802183389152061,14.996831986167303,17.58845992017352,17.48587373671132,16.15577245859631,17.48587373671132,17.766275034452182,17.766275034452182,17.8700398858098,17.766275034452182,17.552560642143707,16.23181265129197,16.23181265129197,17.8700398858098,17.552560642143707,15.210114043073018,14.58677567964761,17.73220618056087,17.85707213520355,17.99175655754079,17.552560642143707,17.99175655754079,17.58845992017352,17.430661834042162,14.996831986167303,15.002564494942712,17.73220618056087,15.002564494942712,14.802183389152061,17.48587373671132,17.48587373671132,17.766275034452182,14.870518187160961,16.9727634092809,17.552560642143707,17.48587373671132,17.48587373671132,16.9727634092809,17.766275034452182,16.15577245859631,17.48587373671132,17.766275034452182,16.15577245859631,14.870518187160961,17.766275034452182,17.73220618056087,17.48587373671132,14.58677567964761,17.8700398858098,17.99175655754079,17.552560642143707,16.23181265129197,17.8700398858098,17.48587373671132,17.8700398858098,17.85707213520355],"n_samples":200},"z":{"apl":1.3900123242600895,"eff":1.5847627714684223},"progressive":[{"removed":[],"apl":0.10820535287905399,"eff":16.6705949050094,"comp":1,"n":19,"m":273,"passes":3785},{"removed":["Gvardiol"],"apl":0.11928040044148858,"eff":14.58677567964761,"comp":1,"n":18,"m":237},{"removed":["Gvardiol","Modrić"],"apl":0.13679985094153457,"eff":12.209147835226489,"comp":1,"n":17,"m":204},{"removed":["Gvardiol","Modrić","Kovačić"],"apl":0.1622771080530316,"eff":10.17964954702191,"comp":1,"n":16,"m":172}]},"Morocco":{"nodes":[{"id":"Amrabat","full":"Sofyan Amrabat","x":48.559386973180075,"y":42.17547892720306,"line":"MID","minutes":630,"bc":0.3520833333333333,"out":261,"in":236},{"id":"Hakimi","full":"Achraf Hakimi Mouh","x":55.678104575163395,"y":70.53954248366013,"line":"DEF","minutes":630,"bc":0.3145833333333333,"out":306,"in":269},{"id":"Aguerd","full":"Nayef Aguerd","x":32.69015151515152,"y":57.89545454545454,"line":"DEF","minutes":360,"bc":0.1,"out":132,"in":119},{"id":"Ounahi","full":"Azzedine Ounahi","x":57.135185185185186,"y":47.90555555555556,"line":"MID","minutes":540,"bc":0.09166666666666666,"out":216,"in":240},{"id":"Saïss","full":"Romain Saïss","x":34.035483870967745,"y":25.83032258064516,"line":"DEF","minutes":540,"bc":0.075,"out":155,"in":137},{"id":"Ziyech","full":"Hakim Ziyech","x":63.80343137254902,"y":64.96862745098039,"line":"MID","minutes":630,"bc":0.03333333333333333,"out":204,"in":266},{"id":"Boufal","full":"Sofiane Boufal","x":71.20186915887851,"y":25.173831775700933,"line":"MID","minutes":630,"bc":0.016666666666666666,"out":107,"in":147},{"id":"Bounou","full":"Yassine Bounou","x":11.296376811594204,"y":40.595652173913045,"line":"GK","minutes":540,"bc":0.016666666666666666,"out":138,"in":97},{"id":"Mazraoui","full":"Noussair Mazraoui","x":51.48613861386139,"y":11.21980198019802,"line":"DEF","minutes":450,"bc":0.008333333333333333,"out":101,"in":83},{"id":"Sabiri","full":"Abdelhamid Sabiri","x":59.25454545454545,"y":26.352272727272727,"line":"MID","minutes":180,"bc":0.0,"out":44,"in":58},{"id":"Yamiq","full":"Jawad El Yamiq","x":38.33028169014084,"y":35.47605633802817,"line":"DEF","minutes":270,"bc":0.0,"out":142,"in":122},{"id":"Mohamedi","full":"Munir Mohand Mohamedi","x":8.84,"y":40.95333333333333,"line":"GK","minutes":90,"bc":0.0,"out":15,"in":8},{"id":"Attiyat-Allah","full":"Yahia Attiyat allah","x":51.32,"y":11.178666666666667,"line":"DEF","minutes":180,"bc":0.0,"out":75,"in":79},{"id":"Dari","full":"Achraf Dari","x":38.8563829787234,"y":46.33085106382979,"line":"DEF","minutes":180,"bc":0.0,"out":94,"in":81},{"id":"Khannous","full":"Bilal El Khannous","x":54.73,"y":54.735,"line":"MID","minutes":90,"bc":0.0,"out":20,"in":24},{"id":"Amallah","full":"Selim Amallah","x":59.65074626865672,"y":40.75671641791045,"line":"MID","minutes":360,"bc":0.0,"out":67,"in":86},{"id":"En-Nesyri","full":"Youssef En-Nesyri","x":59.06808510638297,"y":39.793617021276596,"line":"ATT","minutes":630,"bc":0.0,"out":47,"in":72}],"links":[{"source":"Sabiri","target":"Hakimi","weight":3},{"source":"Sabiri","target":"Ounahi","weight":4},{"source":"Sabiri","target":"Ziyech","weight":5},{"source":"Sabiri","target":"Yamiq","weight":1},{"source":"Sabiri","target":"Mohamedi","weight":1},{"source":"Sabiri","target":"Aguerd","weight":3},{"source":"Sabiri","target":"Mazraoui","weight":1},{"source":"Sabiri","target":"Saïss","weight":3},{"source":"Sabiri","target":"Boufal","weight":6},{"source":"Sabiri","target":"Amrabat","weight":12},{"source":"Sabiri","target":"Attiyat-Allah","weight":3},{"source":"Sabiri","target":"Bounou","weight":2},{"source":"Hakimi","target":"Sabiri","weight":5},{"source":"Hakimi","target":"Dari","weight":7},{"source":"Hakimi","target":"Ounahi","weight":64},{"source":"Hakimi","target":"Khannous","weight":10},{"source":"Hakimi","target":"Ziyech","weight":94},{"source":"Hakimi","target":"Yamiq","weight":11},{"source":"Hakimi","target":"Aguerd","weight":23},{"source":"Hakimi","target":"Mazraoui","weight":1},{"source":"Hakimi","target":"Saïss","weight":2},{"source":"Hakimi","target":"Amallah","weight":20},{"source":"Hakimi","target":"Boufal","weight":12},{"source":"Hakimi","target":"Amrabat","weight":35},{"source":"Hakimi","target":"Attiyat-Allah","weight":2},{"source":"Hakimi","target":"Bounou","weight":7},{"source":"Hakimi","target":"En-Nesyri","weight":13},{"source":"Ounahi","target":"Sabiri","weight":2},{"source":"Ounahi","target":"Dari","weight":8},{"source":"Ounahi","target":"Hakimi","weight":47},{"source":"Ounahi","target":"Ziyech","weight":54},{"source":"Ounahi","target":"Yamiq","weight":9},{"source":"Ounahi","target":"Mohamedi","weight":1},{"source":"Ounahi","target":"Aguerd","weight":10},{"source":"Ounahi","target":"Mazraoui","weight":12},{"source":"Ounahi","target":"Saïss","weight":10},{"source":"Ounahi","target":"Amallah","weight":9},{"source":"Ounahi","target":"Boufal","weight":17},{"source":"Ounahi","target":"Amrabat","weight":27},{"source":"Ounahi","target":"Attiyat-Allah","weight":6},{"source":"Ounahi","target":"Bounou","weight":2},{"source":"Ounahi","target":"En-Nesyri","weight":2},{"source":"Ziyech","target":"Sabiri","weight":4},{"source":"Ziyech","target":"Dari","weight":6},{"source":"Ziyech","target":"Hakimi","weight":76},{"source":"Ziyech","target":"Ounahi","weight":32},{"source":"Ziyech","target":"Khannous","weight":3},{"source":"Ziyech","target":"Yamiq","weight":10},{"source":"Ziyech","target":"Aguerd","weight":4},{"source":"Ziyech","target":"Mazraoui","weight":5},{"source":"Ziyech","target":"Saïss","weight":8},{"source":"Ziyech","target":"Amallah","weight":2},{"source":"Ziyech","target":"Boufal","weight":14},{"source":"Ziyech","target":"Amrabat","weight":23},{"source":"Ziyech","target":"Attiyat-Allah","weight":5},{"source":"Ziyech","target":"Bounou","weight":5},{"source":"Ziyech","target":"En-Nesyri","weight":7},{"source":"Yamiq","target":"Sabiri","weight":3},{"source":"Yamiq","target":"Dari","weight":17},{"source":"Yamiq","target":"Hakimi","weight":17},{"source":"Yamiq","target":"Ounahi","weight":21},{"source":"Yamiq","target":"Khannous","weight":2},{"source":"Yamiq","target":"Ziyech","weight":12},{"source":"Yamiq","target":"Mazraoui","weight":6},{"source":"Yamiq","target":"Saïss","weight":7},{"source":"Yamiq","target":"Amallah","weight":5},{"source":"Yamiq","target":"Boufal","weight":1},{"source":"Yamiq","target":"Amrabat","weight":24},{"source":"Yamiq","target":"Attiyat-Allah","weight":8},{"source":"Yamiq","target":"Bounou","weight":17},{"source":"Yamiq","target":"En-Nesyri","weight":2},{"source":"Mohamedi","target":"Aguerd","weight":5},{"source":"Mohamedi","target":"Mazraoui","weight":2},{"source":"Mohamedi","target":"Saïss","weight":5},{"source":"Mohamedi","target":"Boufal","weight":1},{"source":"Mohamedi","target":"Amrabat","weight":2},{"source":"Aguerd","target":"Hakimi","weight":37},{"source":"Aguerd","target":"Ounahi","weight":14},{"source":"Aguerd","target":"Ziyech","weight":11},{"source":"Aguerd","target":"Mohamedi","weight":2},{"source":"Aguerd","target":"Mazraoui","weight":2},{"source":"Aguerd","target":"Saïss","weight":18},{"source":"Aguerd","target":"Amallah","weight":1},{"source":"Aguerd","target":"Boufal","weight":3},{"source":"Aguerd","target":"Amrabat","weight":24},{"source":"Aguerd","target":"Attiyat-Allah","weight":2},{"source":"Aguerd","target":"Bounou","weight":17},{"source":"Aguerd","target":"En-Nesyri","weight":1},{"source":"Mazraoui","target":"Sabiri","weight":2},{"source":"Mazraoui","target":"Hakimi","weight":3},{"source":"Mazraoui","target":"Ounahi","weight":13},{"source":"Mazraoui","target":"Ziyech","weight":2},{"source":"Mazraoui","target":"Yamiq","weight":8},{"source":"Mazraoui","target":"Aguerd","weight":1},{"source":"Mazraoui","target":"Saïss","weight":20},{"source":"Mazraoui","target":"Amallah","weight":4},{"source":"Mazraoui","target":"Boufal","weight":24},{"source":"Mazraoui","target":"Amrabat","weight":11},{"source":"Mazraoui","target":"Bounou","weight":3},{"source":"Mazraoui","target":"En-Nesyri","weight":10},{"source":"Saïss","target":"Sabiri","weight":4},{"source":"Saïss","target":"Dari","weight":2},{"source":"Saïss","target":"Hakimi","weight":9},{"source":"Saïss","target":"Ounahi","weight":10},{"source":"Saïss","target":"Ziyech","weight":6},{"source":"Saïss","target":"Yamiq","weight":9},{"source":"Saïss","target":"Mohamedi","weight":2},{"source":"Saïss","target":"Aguerd","weight":31},{"source":"Saïss","target":"Mazraoui","weight":17},{"source":"Saïss","target":"Amallah","weight":6},{"source":"Saïss","target":"Boufal","weight":15},{"source":"Saïss","target":"Amrabat","weight":11},{"source":"Saïss","target":"Attiyat-Allah","weight":8},{"source":"Saïss","target":"Bounou","weight":17},{"source":"Saïss","target":"En-Nesyri","weight":8},{"source":"Boufal","target":"Sabiri","weight":10},{"source":"Boufal","target":"Dari","weight":4},{"source":"Boufal","target":"Hakimi","weight":9},{"source":"Boufal","target":"Ounahi","weight":16},{"source":"Boufal","target":"Khannous","weight":2},{"source":"Boufal","target":"Ziyech","weight":13},{"source":"Boufal","target":"Yamiq","weight":2},{"source":"Boufal","target":"Aguerd","weight":1},{"source":"Boufal","target":"Mazraoui","weight":16},{"source":"Boufal","target":"Saïss","weight":6},{"source":"Boufal","target":"Amallah","weight":7},{"source":"Boufal","target":"Amrabat","weight":7},{"source":"Boufal","target":"Attiyat-Allah","weight":8},{"source":"Boufal","target":"En-Nesyri","weight":6},{"source":"Amrabat","target":"Sabiri","weight":11},{"source":"Amrabat","target":"Dari","weight":17},{"source":"Amrabat","target":"Hakimi","weight":25},{"source":"Amrabat","target":"Ounahi","weight":36},{"source":"Amrabat","target":"Ziyech","weight":39},{"source":"Amrabat","target":"Yamiq","weight":11},{"source":"Amrabat","target":"Mohamedi","weight":2},{"source":"Amrabat","target":"Aguerd","weight":22},{"source":"Amrabat","target":"Mazraoui","weight":8},{"source":"Amrabat","target":"Saïss","weight":28},{"source":"Amrabat","target":"Amallah","weight":19},{"source":"Amrabat","target":"Boufal","weight":13},{"source":"Amrabat","target":"Attiyat-Allah","weight":15},{"source":"Amrabat","target":"Bounou","weight":9},{"source":"Amrabat","target":"En-Nesyri","weight":6},{"source":"Attiyat-Allah","target":"Sabiri","weight":7},{"source":"Attiyat-Allah","target":"Dari","weight":5},{"source":"Attiyat-Allah","target":"Ounahi","weight":6},{"source":"Attiyat-Allah","target":"Khannous","weight":4},{"source":"Attiyat-Allah","target":"Ziyech","weight":3},{"source":"Attiyat-Allah","target":"Yamiq","weight":8},{"source":"Attiyat-Allah","target":"Saïss","weight":3},{"source":"Attiyat-Allah","target":"Amallah","weight":4},{"source":"Attiyat-Allah","target":"Boufal","weight":11},{"source":"Attiyat-Allah","target":"Amrabat","weight":10},{"source":"Attiyat-Allah","target":"Bounou","weight":6},{"source":"Attiyat-Allah","target":"En-Nesyri","weight":8},{"source":"Bounou","target":"Sabiri","weight":7},{"source":"Bounou","target":"Dari","weight":14},{"source":"Bounou","target":"Hakimi","weight":6},{"source":"Bounou","target":"Ounahi","weight":5},{"source":"Bounou","target":"Ziyech","weight":2},{"source":"Bounou","target":"Yamiq","weight":26},{"source":"Bounou","target":"Aguerd","weight":17},{"source":"Bounou","target":"Mazraoui","weight":6},{"source":"Bounou","target":"Saïss","weight":13},{"source":"Bounou","target":"Amallah","weight":4},{"source":"Bounou","target":"Boufal","weight":8},{"source":"Bounou","target":"Amrabat","weight":18},{"source":"Bounou","target":"Attiyat-Allah","weight":5},{"source":"Bounou","target":"En-Nesyri","weight":7},{"source":"Dari","target":"Hakimi","weight":12},{"source":"Dari","target":"Ounahi","weight":5},{"source":"Dari","target":"Khannous","weight":2},{"source":"Dari","target":"Ziyech","weight":11},{"source":"Dari","target":"Yamiq","weight":18},{"source":"Dari","target":"Mazraoui","weight":1},{"source":"Dari","target":"Saïss","weight":4},{"source":"Dari","target":"Amallah","weight":1},{"source":"Dari","target":"Boufal","weight":4},{"source":"Dari","target":"Amrabat","weight":20},{"source":"Dari","target":"Attiyat-Allah","weight":6},{"source":"Dari","target":"Bounou","weight":10},{"source":"Khannous","target":"Sabiri","weight":1},{"source":"Khannous","target":"Dari","weight":1},{"source":"Khannous","target":"Hakimi","weight":6},{"source":"Khannous","target":"Ziyech","weight":3},{"source":"Khannous","target":"Yamiq","weight":2},{"source":"Khannous","target":"Boufal","weight":2},{"source":"Khannous","target":"Amrabat","weight":1},{"source":"Khannous","target":"Attiyat-Allah","weight":3},{"source":"Khannous","target":"Bounou","weight":1},{"source":"Amallah","target":"Hakimi","weight":12},{"source":"Amallah","target":"Ounahi","weight":6},{"source":"Amallah","target":"Ziyech","weight":6},{"source":"Amallah","target":"Yamiq","weight":5},{"source":"Amallah","target":"Aguerd","weight":2},{"source":"Amallah","target":"Mazraoui","weight":4},{"source":"Amallah","target":"Saïss","weight":10},{"source":"Amallah","target":"Boufal","weight":7},{"source":"Amallah","target":"Amrabat","weight":4},{"source":"Amallah","target":"Attiyat-Allah","weight":8},{"source":"Amallah","target":"Bounou","weight":1},{"source":"Amallah","target":"En-Nesyri","weight":2},{"source":"En-Nesyri","target":"Sabiri","weight":2},{"source":"En-Nesyri","target":"Hakimi","weight":7},{"source":"En-Nesyri","target":"Ounahi","weight":8},{"source":"En-Nesyri","target":"Khannous","weight":1},{"source":"En-Nesyri","target":"Ziyech","weight":5},{"source":"En-Nesyri","target":"Yamiq","weight":2},{"source":"En-Nesyri","target":"Mazraoui","weight":2},{"source":"En-Nesyri","target":"Amallah","weight":4},{"source":"En-Nesyri","target":"Boufal","weight":9},{"source":"En-Nesyri","target":"Amrabat","weight":7}],"baseline":{"apl":0.1510109230198887,"eff":10.986568424122781,"comp":1,"n":17,"m":213,"passes":2124},"pivot":"Amrabat","pivot_outcome":{"apl":0.177366724236973,"eff":9.579843944874039,"comp":1},"single":{"Sabiri":{"apl":0.14865334683994813,"eff":11.533736883912267,"comp":1},"Hakimi":{"apl":0.18677243975031443,"eff":8.985096741926748,"comp":1},"Ounahi":{"apl":0.15895463530610626,"eff":10.069611113956274,"comp":1},"Ziyech":{"apl":0.15780545737350077,"eff":9.914351412850598,"comp":1},"Yamiq":{"apl":0.15386456829093811,"eff":11.01077697036546,"comp":1},"Mohamedi":{"apl":0.1157059673242912,"eff":12.077111038207818,"comp":1},"Aguerd":{"apl":0.16039834931172428,"eff":10.476121934966335,"comp":1},"Mazraoui":{"apl":0.15282704842163894,"eff":11.197398627795092,"comp":1},"Saïss":{"apl":0.1581886488706811,"eff":10.745674471460973,"comp":1},"Boufal":{"apl":0.15383265875996088,"eff":11.128516404611597,"comp":1},"Amrabat":{"apl":0.177366724236973,"eff":9.579843944874039,"comp":1},"Attiyat-Allah":{"apl":0.15023162838703588,"eff":11.447759894647827,"comp":1},"Bounou":{"apl":0.1533119901741391,"eff":11.100805152672867,"comp":1},"Dari":{"apl":0.15286073290920024,"eff":11.185637420398775,"comp":1},"Khannous":{"apl":0.14182417490283206,"eff":11.761310146010253,"comp":1},"Amallah":{"apl":0.15167563813892937,"eff":11.287295506574056,"comp":1},"En-Nesyri":{"apl":0.14732405727659745,"eff":11.565839284971624,"comp":1}},"random":{"apl_mean":0.1574095555495644,"apl_std":0.011791592279421097,"eff_mean":10.746516615729533,"eff_std":0.8336028623494721,"apl_samples":[0.15023162838703588,0.18677243975031443,0.14865334683994813,0.15286073290920024,0.15386456829093811,0.15780545737350077,0.15780545737350077,0.15895463530610626,0.15286073290920024,0.18677243975031443,0.15023162838703588,0.15286073290920024,0.14732405727659745,0.15383265875996088,0.18677243975031443,0.177366724236973,0.15282704842163894,0.14865334683994813,0.14865334683994813,0.18677243975031443,0.15780545737350077,0.15780545737350077,0.15383265875996088,0.177366724236973,0.14865334683994813,0.15383265875996088,0.15780545737350077,0.15286073290920024,0.15023162838703588,0.15286073290920024,0.15383265875996088,0.15282704842163894,0.15780545737350077,0.1581886488706811,0.177366724236973,0.15386456829093811,0.14182417490283206,0.15167563813892937,0.14865334683994813,0.14182417490283206,0.14182417490283206,0.15895463530610626,0.15286073290920024,0.15282704842163894,0.16039834931172428,0.15386456829093811,0.15895463530610626,0.15780545737350077,0.14182417490283206,0.16039834931172428,0.18677243975031443,0.18677243975031443,0.15282704842163894,0.18677243975031443,0.16039834931172428,0.15167563813892937,0.16039834931172428,0.177366724236973,0.15386456829093811,0.14182417490283206,0.14865334683994813,0.15286073290920024,0.1581886488706811,0.15383265875996088,0.18677243975031443,0.14732405727659745,0.15282704842163894,0.18677243975031443,0.15383265875996088,0.15386456829093811,0.15167563813892937,0.15023162838703588,0.177366724236973,0.14732405727659745,0.15167563813892937,0.16039834931172428,0.177366724236973,0.15780545737350077,0.15286073290920024,0.18677243975031443,0.14865334683994813,0.15023162838703588,0.15780545737350077,0.14182417490283206,0.15386456829093811,0.18677243975031443,0.15167563813892937,0.15780545737350077,0.15167563813892937,0.18677243975031443,0.15282704842163894,0.15386456829093811,0.1581886488706811,0.15023162838703588,0.15167563813892937,0.16039834931172428,0.15895463530610626,0.16039834931172428,0.16039834931172428,0.15780545737350077,0.15023162838703588,0.15386456829093811,0.15286073290920024,0.14732405727659745,0.15023162838703588,0.15023162838703588,0.18677243975031443,0.177366724236973,0.15023162838703588,0.15895463530610626,0.15383265875996088,0.15286073290920024,0.15780545737350077,0.15895463530610626,0.1581886488706811,0.15282704842163894,0.15386456829093811,0.14732405727659745,0.15023162838703588,0.15286073290920024,0.15383265875996088,0.15780545737350077,0.15023162838703588,0.16039834931172428,0.15167563813892937,0.14182417490283206,0.14182417490283206,0.14865334683994813,0.15780545737350077,0.15167563813892937,0.14865334683994813,0.14182417490283206,0.16039834931172428,0.15282704842163894,0.15386456829093811,0.18677243975031443,0.15780545737350077,0.14732405727659745,0.177366724236973,0.14732405727659745,0.15286073290920024,0.16039834931172428,0.15780545737350077,0.15023162838703588,0.1581886488706811,0.15282704842163894,0.14732405727659745,0.14732405727659745,0.15023162838703588,0.1581886488706811,0.15895463530610626,0.15386456829093811,0.15895463530610626,0.15780545737350077,0.15286073290920024,0.15383265875996088,0.15383265875996088,0.15386456829093811,0.15286073290920024,0.177366724236973,0.15282704842163894,0.14732405727659745,0.177366724236973,0.15282704842163894,0.16039834931172428,0.15780545737350077,0.15895463530610626,0.15383265875996088,0.1581886488706811,0.18677243975031443,0.14182417490283206,0.14865334683994813,0.15167563813892937,0.18677243975031443,0.15895463530610626,0.15023162838703588,0.15895463530610626,0.14182417490283206,0.15023162838703588,0.15282704842163894,0.177366724236973,0.18677243975031443,0.15282704842163894,0.15282704842163894,0.177366724236973,0.1581886488706811,0.15383265875996088,0.15386456829093811,0.15383265875996088,0.15167563813892937,0.14865334683994813,0.15023162838703588,0.15286073290920024,0.18677243975031443,0.15023162838703588,0.14732405727659745,0.15383265875996088,0.14182417490283206,0.15386456829093811,0.14182417490283206],"eff_samples":[11.447759894647827,8.985096741926748,11.533736883912267,11.185637420398775,11.01077697036546,9.914351412850598,9.914351412850598,10.069611113956274,11.185637420398775,8.985096741926748,11.447759894647827,11.185637420398775,11.565839284971624,11.128516404611597,8.985096741926748,9.579843944874039,11.197398627795092,11.533736883912267,11.533736883912267,8.985096741926748,9.914351412850598,9.914351412850598,11.128516404611597,9.579843944874039,11.533736883912267,11.128516404611597,9.914351412850598,11.185637420398775,11.447759894647827,11.185637420398775,11.128516404611597,11.197398627795092,9.914351412850598,10.745674471460973,9.579843944874039,11.01077697036546,11.761310146010253,11.287295506574056,11.533736883912267,11.761310146010253,11.761310146010253,10.069611113956274,11.185637420398775,11.197398627795092,10.476121934966335,11.01077697036546,10.069611113956274,9.914351412850598,11.761310146010253,10.476121934966335,8.985096741926748,8.985096741926748,11.197398627795092,8.985096741926748,10.476121934966335,11.287295506574056,10.476121934966335,9.579843944874039,11.01077697036546,11.761310146010253,11.533736883912267,11.185637420398775,10.745674471460973,11.128516404611597,8.985096741926748,11.565839284971624,11.197398627795092,8.985096741926748,11.128516404611597,11.01077697036546,11.287295506574056,11.447759894647827,9.579843944874039,11.565839284971624,11.287295506574056,10.476121934966335,9.579843944874039,9.914351412850598,11.185637420398775,8.985096741926748,11.533736883912267,11.447759894647827,9.914351412850598,11.761310146010253,11.01077697036546,8.985096741926748,11.287295506574056,9.914351412850598,11.287295506574056,8.985096741926748,11.197398627795092,11.01077697036546,10.745674471460973,11.447759894647827,11.287295506574056,10.476121934966335,10.069611113956274,10.476121934966335,10.476121934966335,9.914351412850598,11.447759894647827,11.01077697036546,11.185637420398775,11.565839284971624,11.447759894647827,11.447759894647827,8.985096741926748,9.579843944874039,11.447759894647827,10.069611113956274,11.128516404611597,11.185637420398775,9.914351412850598,10.069611113956274,10.745674471460973,11.197398627795092,11.01077697036546,11.565839284971624,11.447759894647827,11.185637420398775,11.128516404611597,9.914351412850598,11.447759894647827,10.476121934966335,11.287295506574056,11.761310146010253,11.761310146010253,11.533736883912267,9.914351412850598,11.287295506574056,11.533736883912267,11.761310146010253,10.476121934966335,11.197398627795092,11.01077697036546,8.985096741926748,9.914351412850598,11.565839284971624,9.579843944874039,11.565839284971624,11.185637420398775,10.476121934966335,9.914351412850598,11.447759894647827,10.745674471460973,11.197398627795092,11.565839284971624,11.565839284971624,11.447759894647827,10.745674471460973,10.069611113956274,11.01077697036546,10.069611113956274,9.914351412850598,11.185637420398775,11.128516404611597,11.128516404611597,11.01077697036546,11.185637420398775,9.579843944874039,11.197398627795092,11.565839284971624,9.579843944874039,11.197398627795092,10.476121934966335,9.914351412850598,10.069611113956274,11.128516404611597,10.745674471460973,8.985096741926748,11.761310146010253,11.533736883912267,11.287295506574056,8.985096741926748,10.069611113956274,11.447759894647827,10.069611113956274,11.761310146010253,11.447759894647827,11.197398627795092,9.579843944874039,8.985096741926748,11.197398627795092,11.197398627795092,9.579843944874039,10.745674471460973,11.128516404611597,11.01077697036546,11.128516404611597,11.287295506574056,11.533736883912267,11.447759894647827,11.185637420398775,8.985096741926748,11.447759894647827,11.565839284971624,11.128516404611597,11.761310146010253,11.01077697036546,11.761310146010253],"n_samples":200},"z":{"apl":1.692491413754037,"eff":1.399554540356639},"progressive":[{"removed":[],"apl":0.1510109230198887,"eff":10.986568424122781,"comp":1,"n":17,"m":213,"passes":2124},{"removed":["Amrabat"],"apl":0.177366724236973,"eff":9.579843944874039,"comp":1,"n":16,"m":182},{"removed":["Amrabat","Hakimi"],"apl":0.22391507564250854,"eff":7.238923633162765,"comp":1,"n":15,"m":155},{"removed":["Amrabat","Hakimi","Saïss"],"apl":0.24300336146651597,"eff":6.693957946864642,"comp":1,"n":14,"m":130}]}}};
+
+// ===========================================================================
+// CONSTANTS
+// ===========================================================================
+const PITCH_W = 120, PITCH_H = 80;        // StatsBomb units
+const SVG_W   = 720, SVG_H = 480;          // viewBox
+const PAD_X   = 18, PAD_Y = 14;            // pitch padding inside svg
+const innerW  = SVG_W - 2 * PAD_X;
+const innerH  = SVG_H - 2 * PAD_Y;
+
+// Coord mappers: StatsBomb → SVG
+const xs = sx => PAD_X + (sx / PITCH_W) * innerW;
+const ys = sy => PAD_Y + (sy / PITCH_H) * innerH;
+
+const LINE_COLOR = {GK:"#FCBF49", DEF:"#3A86FF", MID:"#E63946", ATT:"#06D6A0"};
+const ACCENT = "#DD8452";
+const PITCH_BG = "#1e3a2d", PITCH_LN = "#e6efe6";
+const DUR = 600; // ms transition
+
+let state = {
+  team: "Argentina",
+  manualRemoved: null,    // single name string or null
+  progStep: 0,            // 0..3
+  hoveredId: null,
+};
+
+// ===========================================================================
+// PITCH BACKGROUND
+// ===========================================================================
+const svg = d3.select("#pitch");
+
+const pitchG = svg.append("g").attr("class", "pitch-bg");
+
+// rectangle
+pitchG.append("rect")
+  .attr("x", xs(0)).attr("y", ys(0))
+  .attr("width",  xs(PITCH_W) - xs(0))
+  .attr("height", ys(PITCH_H) - ys(0))
+  .attr("fill", PITCH_BG)
+  .attr("stroke", PITCH_LN).attr("stroke-width", 1.6);
+
+const line = (x1,y1,x2,y2) => pitchG.append("line")
+  .attr("x1", xs(x1)).attr("y1", ys(y1))
+  .attr("x2", xs(x2)).attr("y2", ys(y2))
+  .attr("stroke", PITCH_LN).attr("stroke-width", 1.2);
+
+const circle = (cx,cy,r,fill) => pitchG.append("circle")
+  .attr("cx", xs(cx)).attr("cy", ys(cy))
+  .attr("r", r)
+  .attr("fill", fill || "none")
+  .attr("stroke", PITCH_LN).attr("stroke-width", 1.2);
+
+const rect = (x,y,w,h) => pitchG.append("rect")
+  .attr("x", xs(x)).attr("y", ys(y))
+  .attr("width", xs(x+w) - xs(x)).attr("height", ys(y+h) - ys(y))
+  .attr("fill", "none")
+  .attr("stroke", PITCH_LN).attr("stroke-width", 1.2);
+
+// halfway line
+line(60, 0, 60, 80);
+// centre circle (radius 9.15 m → unità SB)
+circle(60, 40, (9.15 / PITCH_W) * innerW, null);
+pitchG.append("circle").attr("cx", xs(60)).attr("cy", ys(40)).attr("r", 2).attr("fill", PITCH_LN);
+// penalty boxes
+rect(0, 18, 18, 44);
+rect(102, 18, 18, 44);
+// six-yard boxes
+rect(0, 30, 6, 20);
+rect(114, 30, 6, 20);
+// penalty spots
+pitchG.append("circle").attr("cx", xs(12)).attr("cy", ys(40)).attr("r", 2).attr("fill", PITCH_LN);
+pitchG.append("circle").attr("cx", xs(108)).attr("cy", ys(40)).attr("r", 2).attr("fill", PITCH_LN);
+
+// penalty arcs (left and right)
+const arcR = (9.15 / PITCH_W) * innerW;
+pitchG.append("path")
+  .attr("d", `M ${xs(12) + arcR * Math.cos(Math.PI/3)} ${ys(40) + arcR * Math.sin(Math.PI/3)} A ${arcR} ${arcR} 0 0 1 ${xs(12) + arcR * Math.cos(-Math.PI/3)} ${ys(40) + arcR * Math.sin(-Math.PI/3)}`)
+  .attr("fill", "none").attr("stroke", PITCH_LN).attr("stroke-width", 1.2);
+pitchG.append("path")
+  .attr("d", `M ${xs(108) - arcR * Math.cos(Math.PI/3)} ${ys(40) + arcR * Math.sin(Math.PI/3)} A ${arcR} ${arcR} 0 0 0 ${xs(108) - arcR * Math.cos(-Math.PI/3)} ${ys(40) + arcR * Math.sin(-Math.PI/3)}`)
+  .attr("fill", "none").attr("stroke", PITCH_LN).attr("stroke-width", 1.2);
+
+// Layers above pitch
+const linksG = svg.append("g").attr("class", "links");
+const nodesG = svg.append("g").attr("class", "nodes");
+const labelsG = svg.append("g").attr("class", "labels");
+
+// ===========================================================================
+// TEAM TABS
+// ===========================================================================
+const teams = DATA.meta.teams;
+const teamColors = DATA.meta.team_colors;
+const tabs = d3.select("#team-tabs")
+  .selectAll("button").data(teams).join("button")
+  .attr("role", "tab")
+  .attr("data-team", d => d)
+  .attr("aria-selected", d => d === state.team);
+tabs.append("span").attr("class","swatch").style("background", d => teamColors[d]);
+tabs.append("span").text(d => d);
+tabs.on("click", (e, d) => switchTeam(d));
+
+// ===========================================================================
+// RENDER
+// ===========================================================================
+
+// Scales (rebuilt per team)
+let rScale, wScale, oScale;
+let nodes, links, byId;
+let neighbors; // Map<id, Set<id>>
+
+function switchTeam(team) {
+  state.team = team;
+  state.manualRemoved = null;
+  state.progStep = 0;
+  d3.select("#prog").property("value", 0);
+  tabs.attr("aria-selected", d => d === team);
+  d3.select("#pitch-team-name")
+    .text(team)
+    .style("color", teamColors[team]);
+  render(team, /*initial=*/true);
+}
+
+function render(team, initial) {
+  const T = DATA.teams[team];
+  nodes = T.nodes;
+  links = T.links;
+  byId = new Map(nodes.map(d => [d.id, d]));
+
+  // Build neighbor sets (undirected for hover)
+  neighbors = new Map(nodes.map(d => [d.id, new Set([d.id])]));
+  links.forEach(l => {
+    neighbors.get(l.source).add(l.target);
+    neighbors.get(l.target).add(l.source);
+  });
+
+  // Scales
+  const bcExtent  = d3.extent(nodes, d => d.bc);
+  rScale = d3.scaleSqrt().domain([0, Math.max(bcExtent[1], 0.05)]).range([8, 19]);
+  const wExtent = d3.extent(links, d => d.weight);
+  wScale = d3.scaleSqrt().domain([1, wExtent[1]]).range([0.6, 5.5]);
+  oScale = d3.scaleLinear().domain([1, wExtent[1]]).range([0.20, 0.85]);
+
+  // ----- LINKS (curved paths) ---------------------------------------------
+  const linkSel = linksG.selectAll("path").data(links, d => d.source + "→" + d.target);
+  linkSel.exit().remove();
+  const linkEnter = linkSel.enter().append("path")
+    .attr("fill", "none")
+    .attr("stroke", "white")
+    .attr("stroke-opacity", 0)
+    .attr("stroke-linecap", "round")
+    .attr("d", linkPath);
+  linkEnter.merge(linkSel)
+    .transition().duration(initial ? 0 : DUR)
+    .attr("d", linkPath)
+    .attr("stroke-width", d => wScale(d.weight))
+    .attr("stroke-opacity", d => oScale(d.weight));
+
+  // ----- NODES ------------------------------------------------------------
+  const nodeSel = nodesG.selectAll("g.node").data(nodes, d => d.id);
+  nodeSel.exit().remove();
+
+  const nodeEnter = nodeSel.enter().append("g")
+    .attr("class", "node")
+    .attr("transform", d => `translate(${xs(d.x)},${ys(d.y)})`)
+    .style("cursor", "pointer");
+
+  // Pivot ring (outer)
+  nodeEnter.append("circle")
+    .attr("class", "ring")
+    .attr("r", d => rScale(d.bc) + 3.5)
+    .attr("fill", "none")
+    .attr("stroke", ACCENT).attr("stroke-width", 2.5)
+    .attr("opacity", d => d.id === DATA.teams[team].pivot ? 1 : 0);
+
+  // Main circle
+  nodeEnter.append("circle")
+    .attr("class", "main")
+    .attr("r", d => rScale(d.bc))
+    .attr("fill", d => LINE_COLOR[d.line])
+    .attr("stroke", "white").attr("stroke-width", 2.2)
+    .attr("opacity", 0);
+
+  // Label (player surname) — pinned at top for pivot, hidden otherwise
+  nodeEnter.append("text")
+    .attr("class", "player-label")
+    .attr("text-anchor", "middle")
+    .attr("dy", d => -(rScale(d.bc) + 6))
+    .text(d => d.id);
+
+  // Merge
+  const nodeMerge = nodeEnter.merge(nodeSel);
+
+  nodeMerge.transition().duration(initial ? 0 : DUR)
+    .attr("transform", d => `translate(${xs(d.x)},${ys(d.y)})`);
+
+  nodeMerge.select("circle.ring")
+    .transition().duration(initial ? 0 : DUR)
+    .attr("r", d => rScale(d.bc) + 3.5)
+    .attr("opacity", d => d.id === DATA.teams[team].pivot ? 1 : 0);
+
+  nodeMerge.select("circle.main")
+    .transition().duration(initial ? 0 : DUR)
+    .attr("r", d => rScale(d.bc))
+    .attr("fill", d => LINE_COLOR[d.line])
+    .attr("opacity", 1);
+
+  nodeMerge.select("text.player-label")
+    .attr("dy", d => -(rScale(d.bc) + 6))
+    .text(d => d.id)
+    .classed("pivot", d => d.id === DATA.teams[team].pivot)
+    .style("opacity", d => d.id === DATA.teams[team].pivot ? 1 : 0);
+
+  // Interactions
+  nodeMerge.on("mouseenter", (event, d) => onHover(d.id))
+           .on("mouseleave", () => onHover(null))
+           .on("click",      (event, d) => onClickPlayer(d.id));
+
+  // ----- KPIs / distribution ---------------------------------------------
+  drawDist("#dist-apl", T.random.apl_samples, T.pivot_outcome.apl, "+");
+  drawDist("#dist-eff", T.random.eff_samples, T.pivot_outcome.eff, "-");
+  d3.select("#z-apl").text(`z = +${T.z.apl.toFixed(2)}σ`);
+  d3.select("#z-eff").text(`z = +${T.z.eff.toFixed(2)}σ`);
+
+  updateState();
+}
+
+// ---------------------------------------------------------------------------
+// LINK PATH — curved bezier perpendicular to direction
+// ---------------------------------------------------------------------------
+function linkPath(l) {
+  const s = byId.get(l.source), t = byId.get(l.target);
+  if (!s || !t) return "";
+  const x1 = xs(s.x), y1 = ys(s.y), x2 = xs(t.x), y2 = ys(t.y);
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  // perpendicular offset (right side of direction vector)
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const off = Math.min(18, len * 0.10);   // curvature amount
+  const cx = mx + (-dy / len) * off;
+  const cy = my + ( dx / len) * off;
+  return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+}
+
+// ===========================================================================
+// HOVER
+// ===========================================================================
+function onHover(id) {
+  state.hoveredId = id;
+  const T = DATA.teams[state.team];
+  const isRemoved = removedSet();
+  if (!id) {
+    // Restore
+    linksG.selectAll("path")
+      .transition().duration(180)
+      .attr("stroke", "white")
+      .attr("stroke-opacity", d => removedSet().has(d.source) || removedSet().has(d.target) ? 0.04 : oScale(d.weight));
+    nodesG.selectAll("g.node")
+      .transition().duration(180)
+      .style("opacity", d => removedSet().has(d.id) ? 0.18 : 1);
+    labelsG.selectAll("*").remove();
+    d3.select("#hint").text("Passa il mouse su un giocatore per vedere chi gli passa la palla.");
+    return;
+  }
+  const focus = neighbors.get(id);
+  linksG.selectAll("path")
+    .transition().duration(180)
+    .attr("stroke", d => (d.source === id || d.target === id) ? ACCENT : "white")
+    .attr("stroke-opacity", d => {
+      if (removedSet().has(d.source) || removedSet().has(d.target)) return 0.04;
+      const involves = (d.source === id || d.target === id);
+      return involves ? 0.92 : 0.05;
+    });
+  nodesG.selectAll("g.node")
+    .transition().duration(180)
+    .style("opacity", d => {
+      if (removedSet().has(d.id)) return 0.18;
+      return focus.has(d.id) ? 1 : 0.30;
+    });
+
+  // Hover hint
+  const n = byId.get(id);
+  const isRem = isRemoved.has(id);
+  d3.select("#hint").html(
+    `<strong style="color:var(--ink)">${n.full || n.id}</strong> · ${n.line} · ` +
+    `${n.minutes}′ · bc = ${n.bc.toFixed(3)} · ${n.out} passaggi effettuati` +
+    (isRem ? ` · <em style="color:var(--highlight)">rimosso</em>` : '')
+  );
+}
+
+// ===========================================================================
+// REMOVAL LOGIC
+// ===========================================================================
+function removedSet() {
+  // Either manual single OR progressive list
+  if (state.progStep > 0) {
+    const T = DATA.teams[state.team];
+    return new Set(T.progressive[state.progStep].removed);
+  }
+  if (state.manualRemoved) return new Set([state.manualRemoved]);
+  return new Set();
+}
+
+function onClickPlayer(id) {
+  // Manual click: toggle. Clears progressive.
+  state.progStep = 0;
+  d3.select("#prog").property("value", 0);
+  state.manualRemoved = (state.manualRemoved === id) ? null : id;
+  updateState();
+}
+
+d3.select("#btn-pivot").on("click", () => {
+  state.progStep = 0;
+  d3.select("#prog").property("value", 0);
+  state.manualRemoved = DATA.teams[state.team].pivot;
+  updateState();
+});
+
+d3.select("#btn-random").on("click", () => {
+  state.progStep = 0;
+  d3.select("#prog").property("value", 0);
+  const T = DATA.teams[state.team];
+  const outfield = T.nodes.filter(n => n.line !== "GK");
+  state.manualRemoved = outfield[Math.floor(Math.random() * outfield.length)].id;
+  updateState();
+});
+
+d3.select("#btn-reset").on("click", () => {
+  state.manualRemoved = null;
+  state.progStep = 0;
+  d3.select("#prog").property("value", 0);
+  updateState();
+});
+
+d3.select("#prog").on("input", function() {
+  const v = +this.value;
+  state.progStep = v;
+  state.manualRemoved = null;
+  updateState();
+});
+
+// ===========================================================================
+// UPDATE — recompute visual state from {manualRemoved, progStep, team}
+// ===========================================================================
+function updateState() {
+  const T = DATA.teams[state.team];
+  const removed = removedSet();
+
+  // Determine current metrics
+  let cur, removedNames;
+  if (state.progStep > 0) {
+    cur = T.progressive[state.progStep];
+    removedNames = T.progressive[state.progStep].removed;
+  } else if (state.manualRemoved) {
+    cur = T.single[state.manualRemoved];
+    cur = {...cur, n: T.baseline.n - 1};
+    removedNames = [state.manualRemoved];
+  } else {
+    cur = {...T.baseline};
+    removedNames = [];
+  }
+
+  // KPIs
+  animateNum("#kpi-apl", cur.apl, 3);
+  animateNum("#kpi-eff", cur.eff, 2);
+  d3.select("#kpi-n").text(cur.n);
+  d3.select("#kpi-comp").text(cur.comp);
+
+  // Deltas vs baseline
+  const dApl = (cur.apl - T.baseline.apl) / T.baseline.apl;
+  const dEff = (cur.eff - T.baseline.eff) / T.baseline.eff;
+  setDelta("#kpi-apl-delta", dApl, /*invert=*/false, "path length");
+  setDelta("#kpi-eff-delta", dEff, /*invert=*/true,  "efficienza");
+
+  // Progressive readout
+  d3.select("#prog-readout").text(`${state.progStep} / 3`);
+  const chips = d3.select("#prog-removed").selectAll("span.chip")
+    .data(removedNames, d => d);
+  chips.exit().remove();
+  chips.enter().append("span").attr("class", "chip").text(d => d);
+  d3.select("#prog-removed").classed("empty", removedNames.length === 0)
+    .style("color", removedNames.length === 0 ? "var(--ink-soft)" : null);
+  if (removedNames.length === 0) {
+    d3.select("#prog-removed").html('<em style="color:var(--muted-2)">(nessun giocatore rimosso)</em>');
+  }
+
+  // Apply visual to nodes
+  nodesG.selectAll("g.node")
+    .transition().duration(DUR / 2)
+    .style("opacity", d => removed.has(d.id) ? 0.18 : 1);
+
+  // Apply visual to links
+  linksG.selectAll("path")
+    .transition().duration(DUR / 2)
+    .attr("stroke-opacity", d => (removed.has(d.source) || removed.has(d.target))
+      ? 0.04 : oScale(d.weight));
+
+  // Re-trigger hover styling if anything hovered
+  if (state.hoveredId) onHover(state.hoveredId);
+}
+
+// ===========================================================================
+// HELPERS
+// ===========================================================================
+function animateNum(sel, target, decimals) {
+  const node = d3.select(sel);
+  const cur = parseFloat(node.text()) || 0;
+  node.transition().duration(DUR / 2)
+    .tween("text", function() {
+      const i = d3.interpolateNumber(cur, target);
+      return t => this.textContent = i(t).toFixed(decimals);
+    });
+}
+
+function setDelta(sel, frac, invertSign, what) {
+  const el = d3.select(sel);
+  if (Math.abs(frac) < 0.005) {
+    el.attr("class", "delta neutral").text("baseline");
+    return;
+  }
+  const pct = (frac * 100);
+  // invertSign=true → positive frac = good (e.g. efficiency up), negative = bad
+  //                   here metric is efficiency so up is good
+  const isBad = invertSign ? frac < 0 : frac > 0;
+  // For "bad" damage we use red, for "good" we use green
+  el.attr("class", "delta " + (isBad ? "bad" : "good"))
+    .text((pct >= 0 ? "+" : "") + pct.toFixed(1) + "% vs baseline");
+}
+
+// Distribution mini-chart — small dot strip + pivot marker
+function drawDist(sel, samples, pivotValue, side) {
+  const svgD = d3.select(sel);
+  svgD.selectAll("*").remove();
+  const W = svgD.node().clientWidth || 180;
+  const H = 36;
+  svgD.attr("viewBox", `0 0 ${W} ${H}`);
+
+  const ext = d3.extent([...samples, pivotValue]);
+  const pad = (ext[1] - ext[0]) * 0.08 || 0.01;
+  const x = d3.scaleLinear()
+    .domain([ext[0] - pad, ext[1] + pad])
+    .range([4, W - 4]);
+
+  // Axis baseline
+  svgD.append("line")
+    .attr("x1", 4).attr("x2", W - 4)
+    .attr("y1", H / 2 + 5).attr("y2", H / 2 + 5)
+    .attr("stroke", "#CBD5E1").attr("stroke-width", 1);
+
+  // Sample dots (jittered)
+  svgD.selectAll("circle.sample")
+    .data(samples).join("circle")
+    .attr("class", "sample")
+    .attr("cx", d => x(d))
+    .attr("cy", () => H / 2 + 5 + (Math.random() - 0.5) * 9)
+    .attr("r", 1.6)
+    .attr("fill", "#CBD5E1")
+    .attr("opacity", 0.65);
+
+  // Pivot marker
+  svgD.append("line")
+    .attr("x1", x(pivotValue)).attr("x2", x(pivotValue))
+    .attr("y1", 4).attr("y2", H / 2 + 15)
+    .attr("stroke", "#C44E52").attr("stroke-width", 2);
+
+  svgD.append("circle")
+    .attr("cx", x(pivotValue)).attr("cy", H / 2 + 5)
+    .attr("r", 4)
+    .attr("fill", "#C44E52")
+    .attr("stroke", "white").attr("stroke-width", 1.5);
+}
+
+// ===========================================================================
+// INIT
+// ===========================================================================
+switchTeam("Argentina");
+</script>
+
+</body>
+</html>
