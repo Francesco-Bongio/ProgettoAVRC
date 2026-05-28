@@ -331,7 +331,7 @@ footer code { background: #F1F5F9; padding: 1px 5px; border-radius: 3px; font-si
         <span class="right" id="pitch-team-name">Argentina</span>
       </div>
       <svg id="pitch" viewBox="0 0 720 480" preserveAspectRatio="xMidYMid meet"></svg>
-      <div class="pitch-hint" id="hint">Passa il mouse su un giocatore per vedere chi gli passa la palla.</div>
+      <div class="pitch-hint" id="hint">Passa il mouse su un giocatore per vedere a chi passa la palla.</div>
     </div>
 
     <div class="controls">
@@ -425,15 +425,21 @@ const DATA = {"meta":{"tournament":"FIFA World Cup 2022","teams":["Argentina","F
 // ===========================================================================
 // CONSTANTS
 // ===========================================================================
-const PITCH_W = 120, PITCH_H = 80;        // StatsBomb units
+const PITCH_W = 120, PITCH_H = 80;        // StatsBomb units (yards-based)
 const SVG_W   = 720, SVG_H = 480;          // viewBox
-const PAD_X   = 18, PAD_Y = 14;            // pitch padding inside svg
-const innerW  = SVG_W - 2 * PAD_X;
-const innerH  = SVG_H - 2 * PAD_Y;
+const PAD     = 16;                        // pitch padding inside svg
+
+// Uniform scale (same factor on x and y) so circles stay circular and the
+// pitch keeps its real 3:2 aspect ratio. The pitch is then centred.
+const SCALE   = Math.min((SVG_W - 2 * PAD) / PITCH_W,
+                         (SVG_H - 2 * PAD) / PITCH_H);
+const OFF_X   = (SVG_W - PITCH_W * SCALE) / 2;
+const OFF_Y   = (SVG_H - PITCH_H * SCALE) / 2;
 
 // Coord mappers: StatsBomb → SVG
-const xs = sx => PAD_X + (sx / PITCH_W) * innerW;
-const ys = sy => PAD_Y + (sy / PITCH_H) * innerH;
+const xs = sx => OFF_X + sx * SCALE;
+const ys = sy => OFF_Y + sy * SCALE;
+const sc = v  => v * SCALE;                // scale a raw length (e.g. a radius)
 
 const LINE_COLOR = {GK:"#FCBF49", DEF:"#3A86FF", MID:"#E63946", ATT:"#06D6A0"};
 const ACCENT = "#DD8452";
@@ -451,6 +457,18 @@ let state = {
 // PITCH BACKGROUND
 // ===========================================================================
 const svg = d3.select("#pitch");
+
+// Arrowhead marker for directional hover (fixed pixel size, accent-coloured)
+svg.append("defs").append("marker")
+  .attr("id", "arrow")
+  .attr("viewBox", "0 0 10 10")
+  .attr("refX", 9).attr("refY", 5)
+  .attr("markerWidth", 8).attr("markerHeight", 8)
+  .attr("markerUnits", "userSpaceOnUse")   // don't scale with stroke-width
+  .attr("orient", "auto-start-reverse")
+  .append("path")
+  .attr("d", "M 0 1 L 9 5 L 0 9 z")
+  .attr("fill", ACCENT);
 
 const pitchG = svg.append("g").attr("class", "pitch-bg");
 
@@ -479,12 +497,19 @@ const rect = (x,y,w,h) => pitchG.append("rect")
   .attr("fill", "none")
   .attr("stroke", PITCH_LN).attr("stroke-width", 1.2);
 
+// Pitch markings — StatsBomb regulation geometry (units = yards on a 120×80 pitch)
+//   penalty area: 18 yd deep, 44 yd wide  -> x∈[0,18], y∈[18,62]
+//   six-yard box:  6 yd deep, 20 yd wide  -> x∈[0,6],  y∈[30,50]
+//   penalty spot: 12 yd from goal line
+//   centre circle & penalty arc radius: 10 yd
+const R = 10;                              // 10-yard radius (centre circle + penalty arc)
+
 // halfway line
 line(60, 0, 60, 80);
-// centre circle (radius 9.15 m → unità SB)
-circle(60, 40, (9.15 / PITCH_W) * innerW, null);
+// centre circle + centre spot
+circle(60, 40, sc(R), null);
 pitchG.append("circle").attr("cx", xs(60)).attr("cy", ys(40)).attr("r", 2).attr("fill", PITCH_LN);
-// penalty boxes
+// penalty boxes (18-yard)
 rect(0, 18, 18, 44);
 rect(102, 18, 18, 44);
 // six-yard boxes
@@ -494,13 +519,18 @@ rect(114, 30, 6, 20);
 pitchG.append("circle").attr("cx", xs(12)).attr("cy", ys(40)).attr("r", 2).attr("fill", PITCH_LN);
 pitchG.append("circle").attr("cx", xs(108)).attr("cy", ys(40)).attr("r", 2).attr("fill", PITCH_LN);
 
-// penalty arcs (left and right)
-const arcR = (9.15 / PITCH_W) * innerW;
+// Penalty arcs ("D"): the part of the 10-yard circle around the penalty spot
+// that lies OUTSIDE the 18-yard box, i.e. bulging toward midfield.
+//   spot at x=12, box edge at x=18 -> circle meets the edge where
+//   (18-12)² + dy² = 10²  ->  dy = ±8, so at y = 32 and y = 48.
+const Rsvg = sc(R);
+// left arc: from (18,32) to (18,48), bulging right (toward higher x) -> sweep 1
 pitchG.append("path")
-  .attr("d", `M ${xs(12) + arcR * Math.cos(Math.PI/3)} ${ys(40) + arcR * Math.sin(Math.PI/3)} A ${arcR} ${arcR} 0 0 1 ${xs(12) + arcR * Math.cos(-Math.PI/3)} ${ys(40) + arcR * Math.sin(-Math.PI/3)}`)
+  .attr("d", `M ${xs(18)} ${ys(32)} A ${Rsvg} ${Rsvg} 0 0 1 ${xs(18)} ${ys(48)}`)
   .attr("fill", "none").attr("stroke", PITCH_LN).attr("stroke-width", 1.2);
+// right arc: from (102,32) to (102,48), bulging left (toward lower x) -> sweep 0
 pitchG.append("path")
-  .attr("d", `M ${xs(108) - arcR * Math.cos(Math.PI/3)} ${ys(40) + arcR * Math.sin(Math.PI/3)} A ${arcR} ${arcR} 0 0 0 ${xs(108) - arcR * Math.cos(-Math.PI/3)} ${ys(40) + arcR * Math.sin(-Math.PI/3)}`)
+  .attr("d", `M ${xs(102)} ${ys(32)} A ${Rsvg} ${Rsvg} 0 0 0 ${xs(102)} ${ys(48)}`)
   .attr("fill", "none").attr("stroke", PITCH_LN).attr("stroke-width", 1.2);
 
 // Layers above pitch
@@ -535,6 +565,7 @@ function switchTeam(team) {
   state.team = team;
   state.manualRemoved = null;
   state.progStep = 0;
+  state.hoveredId = null;   // hovered player belongs to the old team; clear it
   d3.select("#prog").property("value", 0);
   tabs.attr("aria-selected", d => d === team);
   d3.select("#pitch-team-name")
@@ -648,12 +679,15 @@ function render(team, initial) {
 }
 
 // ---------------------------------------------------------------------------
-// LINK PATH — curved bezier perpendicular to direction
+// LINK PATH — curved bezier perpendicular to direction.
+// If `shorten` is true, the end is pulled back to the target node's boundary
+// (along the curve tangent) so an arrowhead can sit just outside the circle.
 // ---------------------------------------------------------------------------
-function linkPath(l) {
+function linkPath(l, shorten) {
   const s = byId.get(l.source), t = byId.get(l.target);
   if (!s || !t) return "";
-  const x1 = xs(s.x), y1 = ys(s.y), x2 = xs(t.x), y2 = ys(t.y);
+  const x1 = xs(s.x), y1 = ys(s.y);
+  let x2 = xs(t.x), y2 = ys(t.y);
   const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
   // perpendicular offset (right side of direction vector)
   const dx = x2 - x1, dy = y2 - y1;
@@ -661,6 +695,14 @@ function linkPath(l) {
   const off = Math.min(18, len * 0.10);   // curvature amount
   const cx = mx + (-dy / len) * off;
   const cy = my + ( dx / len) * off;
+  if (shorten) {
+    // tangent at the curve's end of a quadratic bezier points along (end - control)
+    const tx = x2 - cx, ty = y2 - cy;
+    const tl = Math.hypot(tx, ty) || 1;
+    const back = rScale(t.bc) + 5;   // target radius + small gap for the arrowhead
+    x2 -= (tx / tl) * back;
+    y2 -= (ty / tl) * back;
+  }
   return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
 }
 
@@ -672,40 +714,47 @@ function onHover(id) {
   const T = DATA.teams[state.team];
   const isRemoved = removedSet();
   if (!id) {
-    // Restore
+    // Restore: drop arrowheads, un-shorten paths, reset colours/opacity
     linksG.selectAll("path")
+      .attr("marker-end", null)
       .transition().duration(180)
+      .attr("d", d => linkPath(d, false))
       .attr("stroke", "white")
       .attr("stroke-opacity", d => removedSet().has(d.source) || removedSet().has(d.target) ? 0.04 : oScale(d.weight));
     nodesG.selectAll("g.node")
       .transition().duration(180)
       .style("opacity", d => removedSet().has(d.id) ? 0.18 : 1);
     labelsG.selectAll("*").remove();
-    d3.select("#hint").text("Passa il mouse su un giocatore per vedere chi gli passa la palla.");
+    d3.select("#hint").text("Passa il mouse su un giocatore per vedere a chi passa la palla.");
     return;
   }
-  const focus = neighbors.get(id);
+  // Directional: highlight ONLY outgoing passes (hovered player = source)
+  const outTargets = new Set(links.filter(l => l.source === id).map(l => l.target));
+  outTargets.add(id);
+
   linksG.selectAll("path")
+    .attr("marker-end", d => d.source === id ? "url(#arrow)" : null)
     .transition().duration(180)
-    .attr("stroke", d => (d.source === id || d.target === id) ? ACCENT : "white")
+    .attr("d", d => linkPath(d, d.source === id))   // shorten only the highlighted ones
+    .attr("stroke", d => d.source === id ? ACCENT : "white")
     .attr("stroke-opacity", d => {
       if (removedSet().has(d.source) || removedSet().has(d.target)) return 0.04;
-      const involves = (d.source === id || d.target === id);
-      return involves ? 0.92 : 0.05;
+      return d.source === id ? 0.95 : 0.05;
     });
   nodesG.selectAll("g.node")
     .transition().duration(180)
     .style("opacity", d => {
       if (removedSet().has(d.id)) return 0.18;
-      return focus.has(d.id) ? 1 : 0.30;
+      return outTargets.has(d.id) ? 1 : 0.30;
     });
 
   // Hover hint
   const n = byId.get(id);
   const isRem = isRemoved.has(id);
+  const nTargets = outTargets.size - 1;   // exclude self
   d3.select("#hint").html(
     `<strong style="color:var(--ink)">${n.full || n.id}</strong> · ${n.line} · ` +
-    `${n.minutes}′ · bc = ${n.bc.toFixed(3)} · ${n.out} passaggi effettuati` +
+    `${n.minutes}′ · bc = ${n.bc.toFixed(3)} · ${n.out} passaggi verso ${nTargets} compagni` +
     (isRem ? ` · <em style="color:var(--highlight)">rimosso</em>` : '')
   );
 }
